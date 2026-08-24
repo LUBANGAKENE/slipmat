@@ -28,7 +28,7 @@ import requests
 # MusicBrainz requires an identifying User-Agent and throttles generic ones.
 # Put your own contact address here - they ask for it, and it buys goodwill
 # if you ever hit their rate limiter.
-UA = os.environ.get("MB_USER_AGENT", "Slipmat/0.1 (https://github.com/OWNER/slipmat)")
+UA = os.environ.get("MB_USER_AGENT", "Slipmat/0.1 (https://github.com/LUBANGAKENE/slipmat)")
 MB = "https://musicbrainz.org/ws/2"
 _last_mb = 0.0
 

@@ -32,7 +32,7 @@ dashboard. The results table shows a placeholder column where it will land.
 Requires Python 3.10+.
 
 ```bash
-git clone https://github.com/OWNER/slipmat.git
+git clone https://github.com/LUBANGAKENE/slipmat.git
 cd slipmat
 pip install flask requests pillow opencv-python
 
