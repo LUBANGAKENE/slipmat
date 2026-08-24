@@ -63,7 +63,10 @@
     font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:13px}
   td.dur{width:58px;text-align:right;color:var(--dim);
     font-family:ui-monospace,Consolas,monospace;font-size:13px}
-  td.bpm{width:96px;text-align:right;color:var(--line2);font-size:12px;font-style:italic}
+  td.bpm{width:104px;text-align:right;color:var(--line2);font-size:12px;font-style:italic}
+  td.bpm.got{color:var(--dim);font-style:normal;
+    font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+  td.bpm .key{color:var(--amber);font-weight:600}
 
   .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
     margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
@@ -181,11 +184,11 @@ function show(d, secs){
   const tracks = d.tracks || [];
 
   const rows = tracks.length
-    ? tracks.map(t=>`<tr>
+    ? tracks.map((t,i)=>`<tr>
         <td class="pos">${esc(t.position||'')}</td>
         <td>${esc(t.title||'?')}</td>
         <td class="dur">${esc(t.duration||'')}</td>
-        <td class="bpm">bpm / key</td></tr>`).join('')
+        <td class="bpm" id="bpm${i}">bpm / key</td></tr>`).join('')
     : `<tr><td colspan="4" class="empty">${
          d.tracklist_error
            ? esc(d.tracklist_error)
@@ -209,6 +212,44 @@ function show(d, secs){
     </div>`;
   out.style.display = 'block';
   empty.style.display = 'none';
+  loadBpm(d);
+}
+
+// BPM and key are looked up after the tracklist is already on screen - they
+// take a round trip per track and the sleeve read is what you're waiting for.
+// A second scan while the first is still resolving must not write into the new
+// table, so each render claims a token and stale replies are dropped.
+let bpmRun = 0;
+
+async function loadBpm(d){
+  const tracks = d.tracks || [];
+  if (!tracks.some(t=>t.title)) return;
+
+  const run = ++bpmRun;
+  const cells = tracks.map((t,i)=>document.getElementById('bpm'+i));
+  cells.forEach(c=>{ if(c) c.textContent='…'; });
+
+  try{
+    const r = await fetch('/api/bpm', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({artist:d.artist, titles:tracks.map(t=>t.title||'')})});
+    const body = await r.json();
+    if (run !== bpmRun) return;
+    if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
+
+    (body.results||[]).forEach((f,i)=>{
+      const c = cells[i];
+      if (!c) return;
+      if (!f){ c.textContent = '—'; return; }
+      c.classList.add('got');
+      c.title = 'via ' + (f.source||'?');
+      c.innerHTML = `${esc(String(f.bpm))} <span class="key">${esc(f.key||'')}</span>`;
+    });
+  } catch(err){
+    if (run !== bpmRun) return;
+    cells.forEach(c=>{ if(c) c.textContent='—'; });
+    console.warn('bpm lookup failed:', err.message);
+  }
 }
 </script>
 </body>

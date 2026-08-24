@@ -10,9 +10,11 @@ actually use this next to the decks.
 
 import socket
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 
 from flask import Flask, jsonify, render_template, request
 
+import bpm
 import vinyl
 
 app = Flask(__name__)
@@ -42,6 +44,43 @@ def api_scan():
     usage = record.get("_usage") or {}
     record["_cost"] = usage.get("cost")
     return jsonify(record)
+
+
+@app.post("/api/bpm")
+def api_bpm():
+    """Second pass, once the tracklist is already on screen.
+
+    A ten-track LP is ten lookups, and the sleeve read is what you are actually
+    waiting for - so this runs as its own request and the column fills in after.
+    One track failing must not cost you the other nine, hence the per-track try.
+    """
+    payload = request.get_json(silent=True) or {}
+    artist = payload.get("artist")
+    titles = payload.get("titles") or []
+    if not titles:
+        return jsonify({"error": "no titles supplied"}), 400
+    if len(titles) > 40:
+        return jsonify({"error": "at most 40 tracks per request"}), 400
+
+    def one(title):
+        try:
+            feat = bpm.lookup(artist, title)
+        except Exception:
+            traceback.print_exc()
+            return None
+        if not feat:
+            return None
+        return {"bpm": feat["bpm"],
+                "key": feat.get("camelot") or feat.get("key"),
+                "source": feat["source"]}
+
+    # Run them side by side. Serially, a ten-track LP left the column showing
+    # dots for the better part of half a minute; the lookup client keeps its
+    # own rate limit, so widening this further just queues up inside it.
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(pool.map(one, titles))
+
+    return jsonify({"results": results})
 
 
 def lan_ip():
