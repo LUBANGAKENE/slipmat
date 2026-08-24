@@ -1,0 +1,21 @@
+# Replace these with records you actually own.
+# Format: Artist - Title    (# = comment)
+#
+# Seeded with a deliberate difficulty spread so the coverage number means
+# something: if tier 1 hits and tier 3 misses, the API is a mainstream-only
+# database and you'll need local audio analysis for the rest of your crate.
+
+# --- tier 1: mainstream, should always hit ---
+Daft Punk - Around the World
+Michael Jackson - Billie Jean
+Fleetwood Mac - Dreams
+
+# --- tier 2: club staples, well known but not pop radio ---
+Frankie Knuckles - Your Love
+Larry Heard - Can You Feel It
+Mr. Fingers - Mystery of Love
+
+# --- tier 3: the real test — underground / 12" / white label ---
+Theo Parrish - Falling Up
+Moodymann - I Can't Kick This Feelin When It Hits
+Omar S - Psychotic Photosynthesis
