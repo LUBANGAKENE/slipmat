@@ -1,18 +1,13 @@
 """
 Identify a vinyl record from a photo.
 
-Design principle: the recogniser proposes, the database disposes. Every tier
-below produces a *hypothesis* (artist/album strings, or a barcode). Nothing is
-trusted until MusicBrainz confirms it against a real release. That is what lets
-a free model be good enough.
-
-Cascade, most certain and cheapest first:
-    1. barcode      - cv2, offline, exact when the sleeve has one
-    2. gemini flash - free tier, robust to bad booth photos
-    3. manual       - you type it
+Design principle: the recogniser proposes, the database disposes. The model
+produces a *hypothesis* - artist and album strings - and nothing is trusted
+until MusicBrainz confirms it against a real release. That is what lets a free
+model be good enough.
 
 Setup:
-    pip install requests          (cv2, PIL, google-generativeai already present)
+    pip install requests          (PIL, google-generativeai already present)
     $env:GEMINI_API_KEY="..."     from aistudio.google.com, free, no card
 """
 
@@ -33,30 +28,7 @@ MB = "https://musicbrainz.org/ws/2"
 _last_mb = 0.0
 
 
-# ---------------------------------------------------------------- tier 1: barcode
-
-def read_barcode(path):
-    """Decode any EAN/UPC on the sleeve. Free, offline, exact when present."""
-    import cv2
-    img = cv2.imread(path)
-    if img is None:
-        raise FileNotFoundError(path)
-
-    det = cv2.barcode.BarcodeDetector()
-    ok, infos, types, _ = det.detectAndDecodeWithType(img)
-    codes = [c for c in (infos or []) if c] if ok else []
-
-    if not codes:
-        # Sleeves are glossy and booth photos are dim; one contrast pass is cheap.
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        eq = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(gray)
-        ok, infos, types, _ = det.detectAndDecodeWithType(eq)
-        codes = [c for c in (infos or []) if c] if ok else []
-
-    return codes
-
-
-# ---------------------------------------------------------------- tier 2: gemini
+# ------------------------------------------------------------------ the model
 
 PROMPT = """You are looking at a photograph of a vinyl record - either its sleeve
 or its centre label.
@@ -171,15 +143,6 @@ def _release(r):
     }
 
 
-def verify_barcode(code):
-    """Exact lookup. The highest-confidence path there is."""
-    data = _mb_get("release", query="barcode:" + code, limit=5)
-    out = [_release(r) for r in data.get("releases", [])]
-    for rel in out:
-        rel["match"] = "exact"
-    return out
-
-
 def _fuzzy(field, value, edits=1):
     """Lucene fuzzy term: rumours -> release:(rumours~1). Survives OCR slips."""
     words = [w for w in re.split(r"\W+", value or "") if len(w) > 1]
@@ -237,24 +200,11 @@ def verify_text(artist, album, catalog_number=None):
                                       -r["score"]))
 
 
-# ------------------------------------------------------------------- the cascade
+# ------------------------------------------------------------------ the pipeline
 
-def identify(path, use_gemini=True):
+def identify(path):
     """Photo in, confirmed release candidates out."""
     trace = []
-
-    codes = read_barcode(path)
-    trace.append("barcode: " + (str(codes) if codes else "none found"))
-    if codes:
-        hits = verify_barcode(codes[0])
-        if hits:
-            return {"method": "barcode", "confidence": "high",
-                    "candidates": hits, "trace": trace}
-        trace.append("barcode found but unknown to MusicBrainz")
-
-    if not use_gemini:
-        return {"method": None, "confidence": "none",
-                "candidates": [], "trace": trace}
 
     guess = gemini_identify(path)
     trace.append("gemini: %s - %s (catno=%s, conf=%s)" % (
@@ -275,9 +225,9 @@ def identify(path, use_gemini=True):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        sys.exit("usage: python identify.py <photo.jpg> [--no-gemini]")
+        sys.exit("usage: python identify.py <photo.jpg>")
 
-    res = identify(sys.argv[1], use_gemini="--no-gemini" not in sys.argv)
+    res = identify(sys.argv[1])
 
     print("\n  trace:")
     for t in res["trace"]:

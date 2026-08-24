@@ -166,7 +166,7 @@ Standalone, not reachable from the dashboard:
 
 | File | Role |
 |---|---|
-| `identify.py` (CLI) | `python identify.py photo.jpg` — adds a barcode tier (cv2, offline, exact) that the web path does not use |
+| `identify.py` (CLI) | `python identify.py photo.jpg` — identify one photo via Gemini directly, without the dashboard |
 | `probe.py` | Coverage tester for a BPM/key API, against a crate you list in `crate.txt` |
 | `scan.py` | Earlier Gemini-direct version, superseded by `vinyl.py` |
 
@@ -179,8 +179,6 @@ Standalone, not reachable from the dashboard:
   Set `MB_USER_AGENT` to something with your contact details.
 - Photographing the **back cover** is both faster and more accurate than the
   database fallback — you get that exact pressing's tracklist.
-- Barcodes only appear on post-1980s and reissue pressings, so they are an
-  opportunistic shortcut rather than a primary path.
 - Sleeves are typeset, so the model reads back real typographic punctuation.
   A curly apostrophe in `Don’t Stop ’til You Get Enough` cuts ReccoBeats'
   search from twenty results to one, so search text is ASCII-folded first.
