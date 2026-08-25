@@ -17,7 +17,7 @@ starts from the object in your hands: it reads the text printed on the sleeve.
 - A vision model reads the printed text and returns structured data
 - Falls back to MusicBrainz when the photo shows no tracklist
 - Prefers vinyl pressings over CD releases, so you get `A1/B2` rather than `1,2,3`
-- Runs on your phone over local wifi, shooting straight from the camera
+- Runs on your phone over local wifi — camera or gallery, whichever you need
 - Fills in BPM and Camelot key per track where a catalogue knows them
 
 ## BPM and key
@@ -61,8 +61,9 @@ python app.py
 ```
 
 Open <http://127.0.0.1:5000>. The server binds on all interfaces and prints a
-LAN address, so you can open it on your phone on the same wifi and use the
-camera directly — which is how you would actually use this next to the decks.
+LAN address, so you can open it on your phone on the same wifi — tapping the
+drop zone there offers the camera or your photo gallery, whichever has the
+shot, which is how you would actually use this next to the decks.
 
 ### API key
 
