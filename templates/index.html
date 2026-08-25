@@ -15,9 +15,21 @@
     font:15px/1.5 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
   .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
 
-  header{display:flex;align-items:baseline;gap:14px;margin-bottom:22px}
+  header{display:flex;align-items:baseline;gap:14px;margin-bottom:22px;flex-wrap:wrap}
   h1{font-size:19px;margin:0;letter-spacing:.02em;font-weight:600}
   header .sub{color:var(--dim);font-size:13px}
+
+  #auth{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px}
+  #auth input{background:var(--bg);border:1px solid var(--line2);border-radius:6px;
+    color:var(--ink);padding:6px 9px;font-size:13px;width:128px}
+  #auth input::placeholder{color:var(--dim)}
+  #auth .who{color:var(--dim)}
+  #auth .err{color:var(--bad);font-size:12px;max-width:220px}
+
+  .tabs{display:none;gap:6px;margin-bottom:16px}
+  .tab{background:transparent;border:1px solid var(--line2);color:var(--dim);
+    border-radius:7px;padding:7px 14px;font-size:13px;cursor:pointer}
+  .tab.active{border-color:var(--amber);color:var(--ink)}
 
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   @media(max-width:760px){.grid{grid-template-columns:1fr}}
@@ -47,6 +59,7 @@
 
   .status{color:var(--dim);font-size:13px;min-height:19px;margin-top:10px}
   .status.err{color:var(--bad)}
+  .status.ok{color:var(--ok)}
 
   #out{display:none;margin-top:18px}
   .rel{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:6px}
@@ -86,36 +99,69 @@
   <header>
     <h1>Slipmat</h1>
     <span class="sub">photograph a record &rarr; artist, album, tracklist</span>
+    <div id="auth"></div>
   </header>
 
-  <div class="grid">
-    <div class="panel">
-      <div id="drop">
-        <b>Drop photos, or tap to choose</b>
-        <span class="hint">Front sleeve identifies it &middot; back cover has the tracklist</span>
-        <span class="hint">On a phone this offers the camera or your gallery. Paste works too.</span>
-      </div>
-      <input id="file" type="file" accept="image/*" multiple hidden>
-      <div id="thumbs"></div>
-      <div class="row">
-        <button class="go" id="go" disabled>Scan</button>
-        <button class="ghost" id="clear">Clear</button>
-      </div>
-      <div class="status" id="status"></div>
-    </div>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="scan">Scan</button>
+    <button class="tab" data-tab="library">Library</button>
+  </nav>
 
-    <div class="panel">
-      <div id="out"></div>
-      <div class="empty" id="empty">No record scanned yet.</div>
+  <section id="scan-view">
+    <div class="grid">
+      <div class="panel">
+        <div id="drop">
+          <b>Drop photos, or tap to choose</b>
+          <span class="hint">Front sleeve identifies it &middot; back cover has the tracklist</span>
+          <span class="hint">On a phone this offers the camera or your gallery. Paste works too.</span>
+        </div>
+        <input id="file" type="file" accept="image/*" multiple hidden>
+        <div id="thumbs"></div>
+        <div class="row">
+          <button class="go" id="go" disabled>Scan</button>
+          <button class="ghost" id="clear">Clear</button>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+
+      <div class="panel">
+        <div id="out"></div>
+        <div class="empty" id="empty">No record scanned yet.</div>
+        <div class="row" id="saveRow" style="display:none">
+          <button class="ghost" id="saveBtn">Save to library</button>
+          <span class="status" id="saveStatus"></span>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section id="library-view" style="display:none">
+    <div class="panel" id="library-panel">
+      <div class="empty">No saved albums yet.</div>
+    </div>
+  </section>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 const drop = $('#drop'), fileIn = $('#file'), thumbs = $('#thumbs');
 const go = $('#go'), status = $('#status'), out = $('#out'), empty = $('#empty');
 let images = [];
+let lastRecord = null;
+
+// The library is entirely optional. Both values are blank unless a Supabase
+// project is configured server-side (see app.py / .env.example) - blank
+// means run exactly as before, with no accounts and no save button. The
+// `typeof supabase` guard covers the CDN script failing to load, which
+// should degrade the same way as never having configured a project at all.
+const SUPABASE_URL = {{ supabase_url | tojson }};
+const SUPABASE_ANON_KEY = {{ supabase_anon_key | tojson }};
+const supabaseClient = (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase !== 'undefined')
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+let currentUser = null;
 
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -157,7 +203,8 @@ window.addEventListener('paste', e =>
   [...(e.clipboardData?.files||[])].forEach(add));
 
 $('#clear').onclick = () => { images=[]; render(); status.textContent='';
-  out.style.display='none'; empty.style.display='block'; };
+  out.style.display='none'; empty.style.display='block';
+  lastRecord = null; refreshSaveRow(); };
 
 go.onclick = async () => {
   go.disabled = true;
@@ -212,6 +259,8 @@ function show(d, secs){
     </div>`;
   out.style.display = 'block';
   empty.style.display = 'none';
+  lastRecord = d;
+  refreshSaveRow();
   loadBpm(d);
 }
 
@@ -239,6 +288,12 @@ async function loadBpm(d){
 
     (body.results||[]).forEach((f,i)=>{
       const c = cells[i];
+      if (f){
+        // Written back onto the track itself, not just painted into the DOM -
+        // Save to library reads from here, and the cell is thrown away the
+        // next time show() runs.
+        tracks[i].bpm = f.bpm; tracks[i].key = f.key; tracks[i].bpm_source = f.source;
+      }
       if (!c) return;
       if (!f){ c.textContent = '—'; return; }
       c.classList.add('got');
@@ -251,6 +306,180 @@ async function loadBpm(d){
     console.warn('bpm lookup failed:', err.message);
   }
 }
+
+// -------------------------------------------------------------- the library
+// Everything past here is inert when supabaseClient is null - no project
+// configured, same as the app before this feature existed.
+
+function showTab(name){
+  $$('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  $('#scan-view').style.display = name === 'scan' ? '' : 'none';
+  $('#library-view').style.display = name === 'library' ? '' : 'none';
+  if (name === 'library') loadLibrary();
+}
+$('#tabs').addEventListener('click', e => {
+  if (e.target.dataset.tab) showTab(e.target.dataset.tab);
+});
+
+function refreshSaveRow(){
+  const row = $('#saveRow');
+  const visible = !!(currentUser && lastRecord);
+  row.style.display = visible ? 'flex' : 'none';
+  if (visible){
+    $('#saveBtn').disabled = false;
+    $('#saveBtn').textContent = 'Save to library';
+    $('#saveStatus').textContent = '';
+    $('#saveStatus').className = 'status';
+  }
+}
+
+function renderAuth(){
+  const el = $('#auth');
+  if (!supabaseClient){ el.innerHTML = ''; return; }
+
+  if (currentUser){
+    el.innerHTML = `
+      <span class="who">${esc(currentUser.email)}</span>
+      <button class="ghost" id="signOut">Sign out</button>`;
+    $('#tabs').style.display = 'flex';
+  } else {
+    el.innerHTML = `
+      <input id="authEmail" type="email" placeholder="email" autocomplete="email">
+      <input id="authPass" type="password" placeholder="password" autocomplete="current-password">
+      <button class="ghost" id="signIn">Sign in</button>
+      <button class="ghost" id="signUp">Sign up</button>
+      <span class="err" id="authErr"></span>`;
+    $('#tabs').style.display = 'none';
+    showTab('scan');
+  }
+  refreshSaveRow();
+}
+
+// The auth bar's own inputs/buttons are rebuilt by renderAuth() on every
+// state change, so they're wired by delegation rather than by attaching
+// handlers that would just be discarded on the next innerHTML replace.
+$('#auth').addEventListener('click', async e => {
+  const id = e.target.id;
+  if (id !== 'signIn' && id !== 'signUp' && id !== 'signOut') return;
+
+  if (id === 'signOut'){ await supabaseClient.auth.signOut(); return; }
+
+  const email = $('#authEmail').value.trim();
+  const password = $('#authPass').value;
+  const err = $('#authErr');
+  err.textContent = '';
+  if (!email || !password){ err.textContent = 'email and password required'; return; }
+
+  const fn = id === 'signIn' ? 'signInWithPassword' : 'signUp';
+  const { error } = await supabaseClient.auth[fn]({ email, password });
+  if (error) err.textContent = error.message;
+  else if (id === 'signUp') err.textContent = 'Check your email to confirm, then sign in.';
+});
+
+if (supabaseClient){
+  supabaseClient.auth.getSession().then(({ data }) => {
+    currentUser = data.session?.user || null;
+    renderAuth();
+  });
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    currentUser = session?.user || null;
+    renderAuth();
+  });
+}
+
+async function saveToLibrary(d){
+  if (!currentUser || !d) return;
+  const btn = $('#saveBtn'), st = $('#saveStatus');
+  btn.disabled = true;
+  st.className = 'status';
+  st.textContent = 'Saving…';
+
+  try{
+    const { data: album, error } = await supabaseClient.from('albums').insert({
+      artist: d.artist || null, album: d.album || null, year: d.year || null,
+      label: d.label || null, catalog_number: d.catalog_number || null,
+      confidence: d.confidence || null, notes: d.notes || null,
+      tracklist_source: d.tracklist_source || null, model: d._model || null,
+    }).select().single();
+    if (error) throw error;
+
+    const trackRows = (d.tracks || []).map((t, i) => ({
+      album_id: album.id, sort_index: i, position: t.position || null,
+      title: t.title || '?', duration: t.duration || null,
+      bpm: t.bpm ?? null, key_camelot: t.key ?? null, bpm_source: t.bpm_source ?? null,
+    }));
+    if (trackRows.length){
+      const { error: terr } = await supabaseClient.from('tracks').insert(trackRows);
+      if (terr) throw terr;
+    }
+
+    st.className = 'status ok';
+    st.textContent = 'Saved.';
+    btn.textContent = 'Saved';
+  } catch(err){
+    st.className = 'status err';
+    st.textContent = err.message;
+    btn.disabled = false;
+  }
+}
+$('#saveBtn').onclick = () => saveToLibrary(lastRecord);
+
+async function loadLibrary(){
+  const panel = $('#library-panel');
+  panel.innerHTML = '<div class="empty">Loading…</div>';
+
+  const { data, error } = await supabaseClient
+    .from('albums')
+    .select('*, tracks(*)')
+    .order('created_at', { ascending: false })
+    .order('sort_index', { foreignTable: 'tracks' });
+
+  if (error){ panel.innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+  if (!data || !data.length){
+    panel.innerHTML = '<div class="empty">No saved albums yet.</div>';
+    return;
+  }
+  panel.innerHTML = data.map(renderLibraryAlbum).join('<div class="foot"></div>');
+}
+
+function renderLibraryAlbum(a){
+  const meta = [a.year, a.label, a.catalog_number].filter(Boolean)
+                 .map(x=>`<span>${esc(x)}</span>`).join('');
+  const tracks = a.tracks || [];
+
+  const rows = tracks.length
+    ? tracks.map(t=>`<tr>
+        <td class="pos">${esc(t.position||'')}</td>
+        <td>${esc(t.title||'?')}</td>
+        <td class="dur">${esc(t.duration||'')}</td>
+        <td class="bpm${t.bpm!=null?' got':''}">${
+          t.bpm != null
+            ? `${esc(String(t.bpm))} <span class="key">${esc(t.key_camelot||'')}</span>`
+            : '—'
+        }</td></tr>`).join('')
+    : `<tr><td colspan="4" class="empty">No tracklist saved.</td></tr>`;
+
+  const saved = new Date(a.created_at).toLocaleDateString();
+  return `
+    <div class="rel">
+      <div class="artist">${esc(a.artist||'Unknown artist')}</div>
+      <div class="album">${esc(a.album||'Unknown album')}</div>
+      <div class="meta">${meta||'<span>no pressing details read</span>'}</div>
+    </div>
+    <table>${rows}</table>
+    <div class="foot">
+      <span>saved ${esc(saved)}</span>
+      <button class="ghost" data-del="${a.id}">Delete</button>
+    </div>`;
+}
+
+$('#library-panel').addEventListener('click', async e => {
+  const id = e.target.dataset.del;
+  if (!id) return;
+  if (!confirm('Delete this album from your library?')) return;
+  await supabaseClient.from('albums').delete().eq('id', id);   // tracks cascade
+  loadLibrary();
+});
 </script>
 </body>
 </html>

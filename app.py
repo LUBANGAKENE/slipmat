@@ -8,6 +8,7 @@ and shoot the sleeve directly with the phone camera - which is how you'd
 actually use this next to the decks.
 """
 
+import os
 import socket
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -23,7 +24,14 @@ app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024   # a few phone photos
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    # Both are safe to hand to the browser: the anon key is public by design,
+    # protection comes from the Row Level Security policies in
+    # supabase/schema.sql, not from keeping this secret the way the API keys
+    # in .env are. Blank strings mean "no library configured" - the page
+    # notices and hides that part of the UI rather than erroring.
+    return render_template("index.html",
+                           supabase_url=os.environ.get("SUPABASE_URL", ""),
+                           supabase_anon_key=os.environ.get("SUPABASE_ANON_KEY", ""))
 
 
 @app.post("/api/scan")

@@ -19,6 +19,7 @@ starts from the object in your hands: it reads the text printed on the sleeve.
 - Prefers vinyl pressings over CD releases, so you get `A1/B2` rather than `1,2,3`
 - Runs on your phone over local wifi — camera or gallery, whichever you need
 - Fills in BPM and Camelot key per track where a catalogue knows them
+- Optional accounts and a saved library, if you point it at a Supabase project
 
 ## BPM and key
 
@@ -103,6 +104,30 @@ That reports whether the credentials are present and accepted, then resolves a
 track that only lands when the hop is working. Restart `app.py` afterwards —
 `.env` is read at startup.
 
+### Library (optional, sign in and save)
+
+1. Create a free project at <https://supabase.com>.
+2. Open its **SQL Editor** and run [`supabase/schema.sql`](supabase/schema.sql) —
+   creates `albums` and `tracks`, with Row Level Security so each account only
+   ever sees its own.
+3. From **Project Settings → API**, add to `.env`:
+   ```
+   SUPABASE_URL=...
+   SUPABASE_ANON_KEY=...
+   ```
+   The anon key is meant to be public — it goes to the browser, not just this
+   process. What actually protects the data is the Row Level Security in
+   `schema.sql`, not keeping this secret. Leave both blank to run exactly as
+   before, with no accounts and no save button.
+4. Restart `app.py`.
+
+Sign-in is email and password, handled entirely by Supabase Auth — this repo
+never sees a password. A **Save to library** button appears under a scanned
+record once signed in; a **Library** tab lists everything saved, most recent
+first, with a delete on each entry. The browser talks to Supabase directly for
+all of this — Flask never touches it, so `/api/scan` and `/api/bpm` are
+unchanged either way.
+
 ---
 
 ## How it works
@@ -161,7 +186,8 @@ In the live path:
 | `identify.py` | MusicBrainz search, fuzzy matching, vinyl-preference ranking |
 | `bpm.py` | BPM/key resolution — cache → Spotify search → ReccoBeats |
 | `analyze.py` | Camelot conversion, half/double time, pitch-fader math |
-| `templates/index.html` | The dashboard |
+| `templates/index.html` | The dashboard — also talks to Supabase directly for auth and the library |
+| `supabase/schema.sql` | `albums` / `tracks` tables and their RLS policies, run once in your project |
 
 Standalone, not reachable from the dashboard:
 
