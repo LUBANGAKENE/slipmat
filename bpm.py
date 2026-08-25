@@ -29,6 +29,7 @@ import json
 import os
 import sqlite3
 import sys
+import tempfile
 import threading
 import time
 
@@ -80,21 +81,61 @@ class Cache:
     MISS_TTL = 7 * 24 * 3600
 
     def __init__(self, path="bpm_cache.sqlite"):
-        self.path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+        self.path = self._writable_path(path)
+        # :memory: only means something to the connection that opened it - a
+        # fresh connection per operation would see a fresh empty database
+        # each time. That one case keeps a single connection alive instead.
+        self._mem_con = (sqlite3.connect(":memory:", check_same_thread=False)
+                         if self.path == ":memory:" else None)
+        self._mem_lock = threading.Lock()
+
         with self._con() as con:
             con.execute("""CREATE TABLE IF NOT EXISTS features (
                 artist TEXT, title TEXT, fetched_at INT, found INT, data TEXT,
                 PRIMARY KEY (artist, title))""")
             con.commit()
 
+    @contextlib.contextmanager
     def _con(self):
-        """A fresh connection per operation.
+        """A fresh connection per operation, normally.
 
         Flask answers requests on a thread pool and a sqlite connection may
         only be used by the thread that opened it - one long-lived connection
         works from the CLI and then throws on the dashboard's second request.
+        The in-memory fallback is the one exception: there, "fresh" would
+        mean empty, so it reuses a single connection under a lock instead.
         """
-        return contextlib.closing(sqlite3.connect(self.path, timeout=10))
+        if self._mem_con is not None:
+            with self._mem_lock:
+                yield self._mem_con
+        else:
+            with contextlib.closing(sqlite3.connect(self.path, timeout=10)) as con:
+                yield con
+
+    @staticmethod
+    def _writable_path(path):
+        """Next to bpm.py works for local dev, but serverless hosts (Vercel,
+        AWS Lambda) ship the source tree read-only - only /tmp is writable
+        there, and even that is wiped between cold starts. Try each in turn
+        and fall back to a private in-memory database rather than let a
+        read-only filesystem take down every lookup.
+        """
+        candidates = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), path),
+            os.path.join(tempfile.gettempdir(), path),
+        ]
+        for candidate in candidates:
+            try:
+                with contextlib.closing(sqlite3.connect(candidate, timeout=10)):
+                    pass
+            except sqlite3.OperationalError:
+                continue
+            return candidate
+
+        print("  bpm: no writable location for the cache - "
+              "falling back to in-memory (nothing will persist)",
+              file=sys.stderr)
+        return ":memory:"
 
     def get(self, artist, title):
         """Returns (features|None, hit). `hit` distinguishes a cached miss from
