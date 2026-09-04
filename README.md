@@ -127,14 +127,19 @@ record once signed in; a **Library** tab lists everything saved, with a delete
 on each entry. The browser talks to Supabase directly for all of this — Flask
 never touches it, so `/api/scan` and `/api/bpm` are unchanged either way.
 
-The Library tab has two views. **Grid** is the Spotify-style browse — cover
-art, most recent first, click a tile to jump to its full detail. **List** is
-the Rekordbox-style one, every track with its BPM and Camelot key, same as the
-scan results table. Cover art comes from the iTunes Search API (free, no key,
-CORS-open) matched on artist + album, resolved once per album and cached back
-onto its row — like the BPM lookup, it only knows about records that had a
-digital release, so an obscure pressing gets the plain tile rather than a
-wrong cover.
+The Library tab is Spotify's shape on top of Rekordbox's data. Two pills,
+**Albums** and **Artists**, browse cover-art grids — Artists is grouped from
+the same rows, most recently active first; clicking one filters Albums down to
+theirs, with a chip to clear it. Clicking any album tile, or the **View as
+list** link, drops into the Rekordbox-style detail: every track with its BPM
+and Camelot key, same as the scan results table.
+
+Cover art comes from the iTunes Search API (free, no key, CORS-open) matched
+on artist + album, resolved once per album and cached back onto its row —
+like the BPM lookup, it only knows about records that had a digital release,
+so an obscure pressing gets the plain tile rather than a wrong cover. There's
+no Playlists pill — nothing in the app builds or orders a set yet, so a pill
+that did nothing when clicked would be worse than not having one.
 
 **Already ran `schema.sql` before?** `cover_url` was added to `albums` after
 the first version of this feature — run

@@ -31,10 +31,15 @@
     border-radius:7px;padding:7px 14px;font-size:13px;cursor:pointer}
   .tab.active{border-color:var(--amber);color:var(--ink)}
 
-  .subtabs{display:flex;gap:6px;margin-bottom:16px}
-  .subtab{background:transparent;border:1px solid var(--line2);color:var(--dim);
-    border-radius:6px;padding:5px 12px;font-size:12.5px;cursor:pointer}
-  .subtab.active{border-color:var(--amber);color:var(--ink)}
+  .lib-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .lib-header h2{font-size:20px;margin:0;font-weight:700}
+
+  .pillbar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+  .pill-filter{background:var(--panel);border:1px solid var(--line2);color:var(--dim);
+    border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:600;cursor:pointer}
+  .pill-filter.active{background:var(--amber);color:#1a1611;border-color:var(--amber)}
+  .chip{background:var(--bg);border:1px solid var(--amber-dim);color:var(--amber);
+    border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer}
 
   .cover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
     gap:16px}
@@ -162,9 +167,14 @@
   </section>
 
   <section id="library-view" style="display:none">
-    <nav class="subtabs" id="library-subtabs">
-      <button class="subtab active" data-view="grid">Grid</button>
-      <button class="subtab" data-view="list">List</button>
+    <div class="lib-header">
+      <h2>Your Library</h2>
+    </div>
+    <nav class="pillbar" id="library-pills">
+      <button class="pill-filter active" data-view="albums">Albums</button>
+      <button class="pill-filter" data-view="artists">Artists</button>
+      <span id="library-chip"></span>
+      <button class="ghost" id="libListLink" style="margin-left:auto">View as list</button>
     </nav>
     <div class="cover-grid" id="library-grid"></div>
     <div class="panel" id="library-panel" style="display:none">
@@ -352,25 +362,48 @@ $('#tabs').addEventListener('click', e => {
   if (e.target.dataset.tab) showTab(e.target.dataset.tab);
 });
 
-// Grid (cover art, browse) and List (full Rekordbox-style detail) are two
-// views onto the same fetched data, not two separate loads.
-let libView = 'grid';
-function showLibView(view){
+// Three views onto the same fetched data, not three separate loads:
+// Albums (cover grid), Artists (grouped, drills back into a filtered Albums
+// grid), and List (the full Rekordbox-style detail, reached by picking an
+// album or by the explicit link - not a pill, since it isn't a content type).
+let libView = 'albums';
+let libraryArtistFilter = null;
+
+function showLibraryView(view){
   libView = view;
-  $$('.subtab').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  $('#library-grid').style.display = view === 'grid' ? 'grid' : 'none';
+  $$('.pill-filter').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  $('#library-grid').style.display = (view === 'albums' || view === 'artists') ? 'grid' : 'none';
   $('#library-panel').style.display = view === 'list' ? 'block' : 'none';
+  renderLibraryViews();
 }
-showLibView('grid');
-$('#library-subtabs').addEventListener('click', e => {
-  if (e.target.dataset.view) showLibView(e.target.dataset.view);
+
+$('#libListLink').onclick = () => showLibraryView('list');
+
+$('#library-pills').addEventListener('click', e => {
+  if (e.target.id === 'clearArtistFilter'){
+    libraryArtistFilter = null;
+    renderLibraryViews();
+    return;
+  }
+  const view = e.target.dataset.view;
+  if (!view) return;
+  libraryArtistFilter = null;   // switching content type drops any drill-down
+  showLibraryView(view);
 });
+
 $('#library-grid').addEventListener('click', e => {
-  const card = e.target.closest('.cover-card');
-  if (!card) return;
-  showLibView('list');
-  document.getElementById('album-' + card.dataset.id)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const albumCard = e.target.closest('.cover-card[data-id]');
+  if (albumCard){
+    showLibraryView('list');
+    document.getElementById('album-' + albumCard.dataset.id)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  const artistCard = e.target.closest('.cover-card[data-artist]');
+  if (artistCard){
+    libraryArtistFilter = artistCard.dataset.artist;
+    showLibraryView('albums');
+  }
 });
 
 function refreshSaveRow(){
@@ -499,13 +532,34 @@ async function loadLibrary(){
 }
 
 function renderLibraryViews(){
+  renderChip();
+
   if (!libraryAlbums.length){
     $('#library-grid').innerHTML = '<div class="empty">No saved albums yet.</div>';
     $('#library-panel').innerHTML = '<div class="empty">No saved albums yet.</div>';
     return;
   }
-  $('#library-grid').innerHTML = libraryAlbums.map(renderCoverTile).join('');
+
+  if (libView === 'artists'){
+    $('#library-grid').innerHTML = groupByArtist(libraryAlbums).map(renderArtistTile).join('');
+  } else {
+    const shown = libraryArtistFilter
+      ? libraryAlbums.filter(a => (a.artist||'Unknown artist') === libraryArtistFilter)
+      : libraryAlbums;
+    $('#library-grid').innerHTML = shown.length
+      ? shown.map(renderCoverTile).join('')
+      : '<div class="empty">No albums for this artist.</div>';
+  }
+
+  // List always shows everything, regardless of the grid's current filter -
+  // it's reached to browse the whole detailed library, not one artist's slice.
   $('#library-panel').innerHTML = libraryAlbums.map(renderLibraryAlbum).join('<div class="foot"></div>');
+}
+
+function renderChip(){
+  $('#library-chip').innerHTML = libraryArtistFilter
+    ? `<button class="chip" id="clearArtistFilter">${esc(libraryArtistFilter)} &times;</button>`
+    : '';
 }
 
 function coverHtml(url){
@@ -518,6 +572,33 @@ function renderCoverTile(a){
       <div class="art" id="art-${a.id}">${coverHtml(a.cover_url)}</div>
       <div class="t-album">${esc(a.album||'Unknown album')}</div>
       <div class="t-artist">${esc(a.artist||'Unknown artist')}</div>
+    </div>`;
+}
+
+// One tile per artist, most recently active first. There's no artist photo
+// concept here - the tile borrows whichever of their albums has resolved
+// cover art, same placeholder as an album tile if none has yet.
+function groupByArtist(albums){
+  const groups = new Map();
+  for (const a of albums){
+    const key = a.artist || 'Unknown artist';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(a);
+  }
+  return [...groups.entries()]
+    .map(([artist, albums]) => ({
+      artist, albums,
+      cover: albums.find(x => x.cover_url)?.cover_url || null,
+    }))
+    .sort((x, y) => new Date(y.albums[0].created_at) - new Date(x.albums[0].created_at));
+}
+
+function renderArtistTile(g){
+  return `
+    <div class="cover-card" data-artist="${esc(g.artist)}">
+      <div class="art">${coverHtml(g.cover)}</div>
+      <div class="t-album">${esc(g.artist)}</div>
+      <div class="t-artist">${g.albums.length} album${g.albums.length === 1 ? '' : 's'}</div>
     </div>`;
 }
 
@@ -578,14 +659,12 @@ async function resolveCoverArt(artist, album){
 
 async function resolveMissingCovers(){
   const missing = libraryAlbums.filter(a => !a.cover_url);
+  if (!missing.length) return;
+
   await Promise.all(missing.map(async a => {
     const url = await resolveCoverArt(a.artist, a.album);
     if (!url) return;
     a.cover_url = url;
-    const tile = document.getElementById('art-' + a.id);
-    if (tile) tile.innerHTML = coverHtml(url);
-    const thumb = document.getElementById('thumb-' + a.id);
-    if (thumb) thumb.innerHTML = coverHtml(url);
     // Cache it so the next visit costs nothing. Best-effort: a failed write
     // here just means resolving it again next time, not a broken library.
     // The await matters - supabase-js builds this lazily and never sends the
@@ -594,6 +673,12 @@ async function resolveMissingCovers(){
       .update({ cover_url: url }).eq('id', a.id);
     if (cerr) console.warn('cover_url write-back failed (schema migrated?):', cerr.message);
   }));
+
+  // One re-render once everything's settled, rather than patching individual
+  // DOM nodes per album - a resolved cover needs to reach up to three places
+  // now (the album tile, its list-view thumbnail, and its artist's tile),
+  // and a full render is simpler to keep correct than patching all three.
+  renderLibraryViews();
 }
 
 $('#library-panel').addEventListener('click', async e => {
