@@ -26,6 +26,7 @@ create table public.albums (
   notes             text,
   tracklist_source  text,
   model             text,
+  cover_url         text,
   created_at        timestamptz not null default now()
 );
 

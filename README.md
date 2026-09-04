@@ -123,10 +123,25 @@ track that only lands when the hop is working. Restart `app.py` afterwards —
 
 Sign-in is email and password, handled entirely by Supabase Auth — this repo
 never sees a password. A **Save to library** button appears under a scanned
-record once signed in; a **Library** tab lists everything saved, most recent
-first, with a delete on each entry. The browser talks to Supabase directly for
-all of this — Flask never touches it, so `/api/scan` and `/api/bpm` are
-unchanged either way.
+record once signed in; a **Library** tab lists everything saved, with a delete
+on each entry. The browser talks to Supabase directly for all of this — Flask
+never touches it, so `/api/scan` and `/api/bpm` are unchanged either way.
+
+The Library tab has two views. **Grid** is the Spotify-style browse — cover
+art, most recent first, click a tile to jump to its full detail. **List** is
+the Rekordbox-style one, every track with its BPM and Camelot key, same as the
+scan results table. Cover art comes from the iTunes Search API (free, no key,
+CORS-open) matched on artist + album, resolved once per album and cached back
+onto its row — like the BPM lookup, it only knows about records that had a
+digital release, so an obscure pressing gets the plain tile rather than a
+wrong cover.
+
+**Already ran `schema.sql` before?** `cover_url` was added to `albums` after
+the first version of this feature — run
+[`supabase/migrations/0002_cover_url.sql`](supabase/migrations/0002_cover_url.sql)
+once in the SQL Editor to add it. Without it the grid still works — covers
+just get re-fetched every visit instead of cached, and the browser console
+will say why.
 
 ---
 
@@ -188,6 +203,7 @@ In the live path:
 | `analyze.py` | Camelot conversion, half/double time, pitch-fader math |
 | `templates/index.html` | The dashboard — also talks to Supabase directly for auth and the library |
 | `supabase/schema.sql` | `albums` / `tracks` tables and their RLS policies, run once in your project |
+| `supabase/migrations/` | Changes to that schema since — run once each, in order, only if your project predates them |
 
 Standalone, not reachable from the dashboard:
 
