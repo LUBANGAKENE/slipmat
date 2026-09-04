@@ -3,9 +3,10 @@ Web dashboard for Slipmat.
 
     python app.py
 
-Binds on all interfaces, so you can open it on your phone over the same wifi
-and shoot the sleeve directly with the phone camera - which is how you'd
-actually use this next to the decks.
+/ is the homepage; the scan tool itself is at /app. Binds on all interfaces,
+so you can open the tool on your phone over the same wifi and shoot the
+sleeve directly with the camera - which is how you'd actually use this next
+to the decks.
 """
 
 import os
@@ -23,6 +24,11 @@ app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024   # a few phone photos
 
 
 @app.get("/")
+def home():
+    return render_template("home.html")
+
+
+@app.get("/app")
 def index():
     # Both are safe to hand to the browser: the anon key is public by design,
     # protection comes from the Row Level Security policies in
@@ -32,6 +38,11 @@ def index():
     return render_template("index.html",
                            supabase_url=os.environ.get("SUPABASE_URL", ""),
                            supabase_anon_key=os.environ.get("SUPABASE_ANON_KEY", ""))
+
+
+@app.get("/brand")
+def brand():
+    return render_template("brand.html")
 
 
 @app.post("/api/scan")
@@ -106,6 +117,6 @@ def lan_ip():
 if __name__ == "__main__":
     ip = lan_ip()
     print("\n  slipmat")
-    print("    this machine : http://127.0.0.1:5000")
-    print("    your phone   : http://%s:5000\n" % ip)
+    print("    this machine : http://127.0.0.1:5000/app")
+    print("    your phone   : http://%s:5000/app\n" % ip)
     app.run(host="0.0.0.0", port=5000, debug=False)

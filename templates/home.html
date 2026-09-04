@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slipmat — Read the record</title>
+<meta name="description" content="Photograph a vinyl record and get back the artist, album, tracklist, BPM and Camelot key — read off the pressing in your hands, not guessed from a database.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400;62..125,600;62..125,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ink:#14171B; --ink-950:#0E1013; --ink-800:#22262B;
+    --paper:#EFEBE1; --paper-300:#D5CFC0;
+    --red:#E8452B; --red-600:#C8371F;
+    --amber:#E0A32B; --teal:#3E8C7E;
+    --slate:#6B7A82; --slate-ink:#5C6A72;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;line-height:1.5}
+  a{color:inherit}
+  .mono{font-family:'IBM Plex Mono',monospace}
+  .display{font-family:Archivo,sans-serif;font-variation-settings:'wdth' 120,'wght' 800;
+    text-transform:uppercase;letter-spacing:-.035em;line-height:.9}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--slate-ink)}
+  .wrap{max-width:1160px;margin:0 auto;padding:0 clamp(20px,5vw,56px)}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;
+    font-family:Archivo,sans-serif;font-variation-settings:'wdth' 108,'wght' 800;
+    font-size:14px;letter-spacing:.02em;text-transform:uppercase;padding:15px 26px;
+    cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+  .btn.solid{background:var(--red);color:#140C09;border:1.5px solid var(--red)}
+  .btn.solid:hover{background:var(--red-600);border-color:var(--red-600)}
+  .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink)}
+  .btn.ghost:hover{background:var(--ink);color:var(--paper)}
+
+  .badge{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.12em;
+    text-transform:uppercase;padding:7px 13px;border-radius:999px;border:1.5px solid var(--ink);
+    color:var(--ink)}
+
+  header{display:flex;align-items:center;justify-content:space-between;
+    padding:22px clamp(20px,5vw,56px);border-bottom:2px solid var(--ink)}
+  .mark{display:flex;align-items:center;gap:11px}
+  .disc{position:relative;width:26px;aspect-ratio:1/1;border-radius:50%;background:var(--ink);flex:none}
+  .disc i{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:46%;aspect-ratio:1/1;border-radius:50%;background:var(--red)}
+  .wordmark{font-family:Archivo,sans-serif;font-variation-settings:'wdth' 116,'wght' 800;
+    font-size:19px;text-transform:uppercase;letter-spacing:-.02em}
+  nav{display:flex;align-items:center;gap:28px}
+  nav a.navlink{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--slate-ink)}
+  nav a.navlink:hover{color:var(--ink)}
+  @media (max-width:600px){
+    header{padding:16px 20px}
+    .wordmark{font-size:16px}
+    nav{gap:14px}
+    nav a.navlink{display:none}                 /* GitHub link still lives in the footer */
+    nav a.btn{padding:10px 16px;font-size:11.5px}
+  }
+
+  .hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)}
+  @media (max-width:860px){.hero{grid-template-columns:1fr}}
+  .hero-copy{padding:clamp(48px,7vw,80px) clamp(20px,5vw,56px);display:grid;gap:26px;align-content:center}
+  .hero h1{margin:0;font-size:clamp(42px,6vw,80px)}
+  .hero p{margin:0;max-width:460px;font-size:18px;line-height:1.55;color:#3B454C}
+  .hero-ctas{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .hero-badges{display:flex;flex-wrap:wrap;gap:10px;padding-top:18px;border-top:2px solid var(--ink)}
+
+  .hero-visual{position:relative;min-height:420px;background:var(--ink);overflow:hidden}
+  .hatch{position:absolute;inset:0;background:repeating-linear-gradient(45deg,#1A1E23,#1A1E23 10px,#14171B 10px,#14171B 20px)}
+  .hero-visual .caption{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:16px;color:var(--slate);font-family:'IBM Plex Mono',monospace;
+    font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+  .reading{position:absolute;left:22px;bottom:22px;background:#0E1013EE;
+    border-left:2px solid var(--red);padding:14px 18px;display:grid;gap:5px}
+  .reading .lbl{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--slate)}
+  .reading .val{font-family:Archivo,sans-serif;font-variation-settings:'wdth' 118,'wght' 800;
+    font-size:26px;line-height:1;letter-spacing:-.03em;color:var(--paper);font-variant-numeric:tabular-nums}
+  .reading .val .bpm{color:var(--amber);font-size:14px}
+  .reading .val .key{color:var(--teal);font-size:20px}
+
+  .ticker-rail{background:var(--ink);border-top:2px solid var(--ink);overflow:hidden;padding:12px 0}
+  .ticker{display:flex;gap:32px;width:max-content;font-family:'IBM Plex Mono',monospace;
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--paper);
+    animation:ticker 28s linear infinite}
+  @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @media (prefers-reduced-motion:reduce){.ticker{animation:none}}
+
+  section.steps{padding:clamp(56px,8vw,96px) 0}
+  .steps h2{margin:0 0 40px;font-size:clamp(28px,3.4vw,44px)}
+  .steps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;
+    background:var(--ink-800);border:1px solid var(--ink-800)}
+  .step{background:var(--paper);padding:30px 26px}
+  .step .n{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--red);margin-bottom:12px}
+  .step h3{margin:0 0 10px;font-size:17px;font-family:'IBM Plex Sans',sans-serif;font-weight:600}
+  .step p{margin:0;font-size:14.5px;line-height:1.6;color:#3B454C}
+
+  footer{border-top:2px solid var(--ink);padding:32px clamp(20px,5vw,56px);
+    display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
+  footer .fine{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;
+    color:var(--slate-ink)}
+  footer a{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="mark" style="text-decoration:none;color:inherit">
+    <div class="disc"><i></i></div>
+    <span class="wordmark">Slipmat</span>
+  </a>
+  <nav>
+    <a class="navlink" href="#how-it-works">How it works</a>
+    <a class="navlink" href="https://github.com/LUBANGAKENE/slipmat">GitHub</a>
+    <a class="btn solid" href="/app" style="padding:11px 20px;font-size:12.5px">Open Slipmat</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">Vinyl · Tempo · Key · Tracklist</div>
+    <h1 class="display">Read the record.</h1>
+    <p>Photograph the sleeve. Slipmat reads the tracklist straight off the pressing in
+      your hands — not a guess at which reissue you own — then looks up BPM and Camelot
+      key for every track it can find. Nothing found beats a wrong answer, so a blank
+      column stays a blank column.</p>
+    <div class="hero-ctas">
+      <a class="btn solid" href="/app">Open Slipmat →</a>
+      <a class="btn ghost" href="https://github.com/LUBANGAKENE/slipmat">View on GitHub</a>
+    </div>
+    <div class="hero-badges">
+      <span class="badge">Free &amp; self-hosted</span>
+      <span class="badge">Bring your own API keys</span>
+      <span class="badge">Open source · MIT</span>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="hatch"></div>
+    <div class="caption">Photograph a sleeve, back cover, or centre label</div>
+    <div class="reading">
+      <span class="lbl">Sample reading</span>
+      <span class="val">121.9 <span class="bpm">BPM</span> · <span class="key">4A</span></span>
+    </div>
+  </div>
+</section>
+
+<div class="ticker-rail">
+  <div class="ticker">
+    <span>Afrobeats ✺ 118.0 ✺ 11A</span><span>House ✺ 124.0 ✺ 8B</span>
+    <span>Dub ✺ 76.5 ✺ 3A</span><span>Amapiano ✺ 112.0 ✺ 6A</span>
+    <span>Disco ✺ 120.4 ✺ 9B</span><span>Jazz ✺ 121.9 ✺ 4A</span>
+    <span>Afrobeats ✺ 118.0 ✺ 11A</span><span>House ✺ 124.0 ✺ 8B</span>
+    <span>Dub ✺ 76.5 ✺ 3A</span><span>Amapiano ✺ 112.0 ✺ 6A</span>
+    <span>Disco ✺ 120.4 ✺ 9B</span><span>Jazz ✺ 121.9 ✺ 4A</span>
+  </div>
+</div>
+
+<section class="steps wrap" id="how-it-works">
+  <h2 class="display" style="font-size:clamp(26px,3.2vw,38px)">How it works</h2>
+  <div class="steps-grid">
+    <div class="step">
+      <div class="n mono">01</div>
+      <h3>Photograph the sleeve</h3>
+      <p>Front cover, back cover, or centre label. A vision model transcribes what's
+        printed and says so plainly when something's illegible, rather than guessing.</p>
+    </div>
+    <div class="step">
+      <div class="n mono">02</div>
+      <h3>Your pressing decides</h3>
+      <p>The back cover's tracklist wins over any database. MusicBrainz only fills in
+        when no tracklist is visible — and prefers the vinyl pressing over a CD reissue,
+        so you get <span class="mono">A1/B2</span>, not <span class="mono">1, 2, 3</span>.</p>
+    </div>
+    <div class="step">
+      <div class="n mono">03</div>
+      <h3>BPM and key, resolved</h3>
+      <p>Matched against ReccoBeats, with an optional Spotify search hop to sharpen the
+        match. Camelot notation, half/double-time candidates, pitch-fader math included.</p>
+    </div>
+    <div class="step">
+      <div class="n mono">04</div>
+      <h3>Save it, browse it</h3>
+      <p>Sign in — optional, your own Supabase project — and keep a library: a cover-art
+        grid, browse by artist, or a flat sortable Rekordbox-style track list.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="mark">
+    <div class="disc" style="width:20px"><i></i></div>
+    <span class="wordmark" style="font-size:15px">Slipmat</span>
+  </div>
+  <div class="fine">Free and open source · <a href="https://github.com/LUBANGAKENE/slipmat">MIT licensed on GitHub</a></div>
+</footer>
+
+</body>
+</html>

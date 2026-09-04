@@ -61,10 +61,11 @@ cp .env.example .env      # then put your key in it
 python app.py
 ```
 
-Open <http://127.0.0.1:5000>. The server binds on all interfaces and prints a
-LAN address, so you can open it on your phone on the same wifi — tapping the
-drop zone there offers the camera or your photo gallery, whichever has the
-shot, which is how you would actually use this next to the decks.
+Open <http://127.0.0.1:5000/app>. `/` is the homepage; the scan tool itself
+lives at `/app`. The server binds on all interfaces and prints a LAN address,
+so you can open it on your phone on the same wifi — tapping the drop zone
+there offers the camera or your photo gallery, whichever has the shot, which
+is how you would actually use this next to the decks.
 
 ### API key
 
@@ -210,7 +211,9 @@ In the live path:
 | `identify.py` | MusicBrainz search, fuzzy matching, vinyl-preference ranking |
 | `bpm.py` | BPM/key resolution — cache → Spotify search → ReccoBeats |
 | `analyze.py` | Camelot conversion, half/double time, pitch-fader math |
-| `templates/index.html` | The dashboard — also talks to Supabase directly for auth and the library |
+| `templates/index.html` | The dashboard (`/app`) — also talks to Supabase directly for auth and the library |
+| `templates/home.html` | The homepage (`/`) |
+| `templates/brand.html` | Brand identity reference — palette, type, logo, voice (`/brand`) |
 | `supabase/schema.sql` | `albums` / `tracks` tables and their RLS policies, run once in your project |
 | `supabase/migrations/` | Changes to that schema since — run once each, in order, only if your project predates them |
 
