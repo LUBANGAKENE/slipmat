@@ -41,6 +41,23 @@
   .chip{background:var(--bg);border:1px solid var(--amber-dim);color:var(--amber);
     border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer}
 
+  #library-tracks{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    overflow-x:auto}
+  table.tracklist{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.tracklist th{text-align:left;padding:10px 12px;color:var(--dim);font-size:11.5px;
+    text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line);
+    white-space:nowrap}
+  table.tracklist th.sortable{cursor:pointer;user-select:none}
+  table.tracklist th.sortable:hover{color:var(--ink)}
+  table.tracklist th .arrow{color:var(--amber);margin-left:3px}
+  table.tracklist td{padding:9px 12px;border-bottom:1px solid #221f1d;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:280px}
+  table.tracklist tr:last-child td{border-bottom:0}
+  table.tracklist tr:hover td{background:#1d1b18}
+  table.tracklist td.num{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+    text-align:right}
+  table.tracklist td.key{color:var(--amber);font-weight:600}
+
   .cover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
     gap:16px}
   .cover-card{background:var(--panel);border:1px solid var(--line);border-radius:9px;
@@ -173,10 +190,12 @@
     <nav class="pillbar" id="library-pills">
       <button class="pill-filter active" data-view="albums">Albums</button>
       <button class="pill-filter" data-view="artists">Artists</button>
+      <button class="pill-filter" data-view="tracks">Tracks</button>
       <span id="library-chip"></span>
       <button class="ghost" id="libListLink" style="margin-left:auto">View as list</button>
     </nav>
     <div class="cover-grid" id="library-grid"></div>
+    <div id="library-tracks" style="display:none"></div>
     <div class="panel" id="library-panel" style="display:none">
       <div class="empty">No saved albums yet.</div>
     </div>
@@ -373,6 +392,7 @@ function showLibraryView(view){
   libView = view;
   $$('.pill-filter').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   $('#library-grid').style.display = (view === 'albums' || view === 'artists') ? 'grid' : 'none';
+  $('#library-tracks').style.display = view === 'tracks' ? 'block' : 'none';
   $('#library-panel').style.display = view === 'list' ? 'block' : 'none';
   renderLibraryViews();
 }
@@ -536,11 +556,14 @@ function renderLibraryViews(){
 
   if (!libraryAlbums.length){
     $('#library-grid').innerHTML = '<div class="empty">No saved albums yet.</div>';
+    $('#library-tracks').innerHTML = '<div class="empty">No saved albums yet.</div>';
     $('#library-panel').innerHTML = '<div class="empty">No saved albums yet.</div>';
     return;
   }
 
-  if (libView === 'artists'){
+  if (libView === 'tracks'){
+    renderTracksTable();
+  } else if (libView === 'artists'){
     $('#library-grid').innerHTML = groupByArtist(libraryAlbums).map(renderArtistTile).join('');
   } else {
     const shown = libraryArtistFilter
@@ -555,6 +578,84 @@ function renderLibraryViews(){
   // it's reached to browse the whole detailed library, not one artist's slice.
   $('#library-panel').innerHTML = libraryAlbums.map(renderLibraryAlbum).join('<div class="foot"></div>');
 }
+
+// -------------------------------------------------------------- track list
+// Rekordbox's Collection view: every track, flattened out of its album,
+// sortable. BPM and Key are the two columns worth sorting on here - Title
+// and Artist would just be alphabetising a crate, which isn't how anyone
+// actually uses this.
+let tracksSort = { col: null, dir: 1 };
+
+function flattenTracks(albums){
+  const out = [];
+  for (const a of albums){
+    for (const t of (a.tracks || [])){
+      out.push({ ...t, artist: a.artist, album: a.album });
+    }
+  }
+  return out;
+}
+
+// Camelot as a single number so both BPM and Key sort through the same
+// null-handling comparator: 1A=0, 1B=1, 2A=2, ... 12B=23. Ascending walks
+// the wheel in order rather than doing a plain string sort, where "10A"
+// would wrongly land before "2A".
+function keyRank(k){
+  const m = /^(\d{1,2})([AB])$/.exec(k || '');
+  return m ? (parseInt(m[1], 10) - 1) * 2 + (m[2] === 'B' ? 1 : 0) : null;
+}
+
+function sortTracks(rows){
+  if (!tracksSort.col) return rows;
+  const { col, dir } = tracksSort;
+  return [...rows].sort((a, b) => {
+    const av = col === 'bpm' ? a.bpm : keyRank(a.key_camelot);
+    const bv = col === 'bpm' ? b.bpm : keyRank(b.key_camelot);
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;    // blanks sort last, whichever direction
+    if (bv == null) return -1;
+    return (av - bv) * dir;
+  });
+}
+
+function setTracksSort(col){
+  if (tracksSort.col === col) tracksSort.dir *= -1;
+  else tracksSort = { col, dir: 1 };
+  renderTracksTable();
+}
+
+function renderTracksTable(){
+  const rows = sortTracks(flattenTracks(libraryAlbums));
+  const arrow = col => tracksSort.col === col
+    ? `<span class="arrow">${tracksSort.dir === 1 ? '▲' : '▼'}</span>` : '';
+
+  const body = rows.length
+    ? rows.map(t => `<tr>
+        <td>${esc(t.title || '?')}</td>
+        <td>${esc(t.artist || 'Unknown artist')}</td>
+        <td>${esc(t.album || '')}</td>
+        <td class="num">${t.bpm != null ? esc(String(t.bpm)) : '—'}</td>
+        <td class="num key">${esc(t.key_camelot || '—')}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="5" class="empty">No tracks saved.</td></tr>`;
+
+  $('#library-tracks').innerHTML = `
+    <table class="tracklist">
+      <thead><tr>
+        <th>Title</th>
+        <th>Artist</th>
+        <th>Album</th>
+        <th class="sortable" data-sort="bpm">BPM${arrow('bpm')}</th>
+        <th class="sortable" data-sort="key">Key${arrow('key')}</th>
+      </tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+}
+
+$('#library-tracks').addEventListener('click', e => {
+  const th = e.target.closest('th[data-sort]');
+  if (th) setTracksSort(th.dataset.sort);
+});
 
 function renderChip(){
   $('#library-chip').innerHTML = libraryArtistFilter

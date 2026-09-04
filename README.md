@@ -127,12 +127,16 @@ record once signed in; a **Library** tab lists everything saved, with a delete
 on each entry. The browser talks to Supabase directly for all of this — Flask
 never touches it, so `/api/scan` and `/api/bpm` are unchanged either way.
 
-The Library tab is Spotify's shape on top of Rekordbox's data. Two pills,
-**Albums** and **Artists**, browse cover-art grids — Artists is grouped from
+The Library tab is Spotify's shape on top of Rekordbox's data. Three pills:
+**Albums** and **Artists** browse cover-art grids — Artists is grouped from
 the same rows, most recently active first; clicking one filters Albums down to
-theirs, with a chip to clear it. Clicking any album tile, or the **View as
-list** link, drops into the Rekordbox-style detail: every track with its BPM
-and Camelot key, same as the scan results table.
+theirs, with a chip to clear it. **Tracks** is Rekordbox's Collection view —
+every track flattened out of its album into one sortable table; click the BPM
+or Key header to sort by it, click again to reverse. Key sorts around the
+Camelot wheel (`1A, 1B, 2A, 2B, …`), not alphabetically, so `10A` doesn't land
+ahead of `2A`. Clicking any album tile, or the **View as list** link, drops
+into the full Rekordbox-style detail instead: every track with its BPM and
+Camelot key, grouped back under its album, same as the scan results table.
 
 Cover art comes from the iTunes Search API (free, no key, CORS-open) matched
 on artist + album, resolved once per album and cached back onto its row —
