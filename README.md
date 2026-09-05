@@ -174,6 +174,12 @@ order, in the SQL Editor — each is a no-op if you're already caught up:
 - [`supabase/migrations/0003_playlists.sql`](supabase/migrations/0003_playlists.sql)
   — the `playlists` and `playlist_tracks` tables. Without it the Playlists
   pill shows a permission/relation error instead of the tree.
+- [`supabase/migrations/0004_playlist_tracks_bigint.sql`](supabase/migrations/0004_playlist_tracks_bigint.sql)
+  — only if you ran `0003` before this fix. `sort_index` shipped as a 4-byte
+  `int`, and a drag-and-drop append writes a millisecond timestamp that
+  overflows it immediately — dropping a track onto a playlist fails with
+  `value ... is out of range for type integer`. New `0003` runs already get
+  the right type; this widens an existing one.
 
 ---
 

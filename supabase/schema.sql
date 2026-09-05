@@ -93,12 +93,18 @@ create policy "playlists: owner full access" on public.playlists
 -- Which tracks are in which playlist, and in what order. user_id is
 -- duplicated here for the same reason as on tracks - a plain equality
 -- policy instead of a join back through playlists on every row.
+--
+-- sort_index is bigint, not int: a drag-and-drop append writes Date.now() so
+-- ordering never needs to ask "how many tracks are already in here" before
+-- inserting one more. A millisecond timestamp is already ~1.8 trillion
+-- today, which overflows a 4-byte int (max ~2.1 billion) - int4 was simply
+-- the wrong type for the value actually being stored in it.
 create table public.playlist_tracks (
   id           uuid primary key default gen_random_uuid(),
   playlist_id  uuid not null references public.playlists(id) on delete cascade,
   track_id     uuid not null references public.tracks(id) on delete cascade,
   user_id      uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  sort_index   int not null default 0,
+  sort_index   bigint not null default 0,
   added_at     timestamptz not null default now()
 );
 

@@ -28,7 +28,7 @@ create table public.playlist_tracks (
   playlist_id  uuid not null references public.playlists(id) on delete cascade,
   track_id     uuid not null references public.tracks(id) on delete cascade,
   user_id      uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  sort_index   int not null default 0,
+  sort_index   bigint not null default 0,
   added_at     timestamptz not null default now()
 );
 
