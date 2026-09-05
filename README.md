@@ -142,8 +142,10 @@ grouped back under its album, same as the scan results table.
 **Playlists** is Rekordbox's own tree: **All Tracks** first (the same flat
 table as the Tracks pill — one function renders both), then folders and
 playlists underneath, nested arbitrarily deep. Right-click **Playlists** or
-any folder for **New Playlist** / **New Folder**; a playlist is a leaf, so it
-gets no menu of its own. Unlike Albums/Artists/Tracks — all just different
+any folder for a small panel — pick **New Playlist** or **New Folder**, then
+name it right there; no browser `prompt()` dialog, which looked and behaved
+like nothing else in this app. A playlist is a leaf, so right-clicking one
+gets no menu at all. Unlike Albums/Artists/Tracks — all just different
 views over the albums you've saved — playlists are real rows: a track can sit
 in any number of them, which is the one place in this schema a join table is
 actually the right call (`playlists`, a self-referencing tree of folders and

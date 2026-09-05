@@ -107,11 +107,26 @@
   .pl-main .empty{padding:40px 20px}
 
   .pl-ctxmenu{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line2);
-    border-radius:8px;padding:6px;min-width:170px;box-shadow:0 10px 30px -8px #000000aa;display:none}
-  .pl-ctxmenu button{display:block;width:100%;text-align:left;background:transparent;border:0;
-    color:var(--ink);padding:9px 12px;border-radius:5px;cursor:pointer;font-size:13px;
-    font-family:var(--font-body)}
-  .pl-ctxmenu button:hover{background:var(--red);color:#140C09}
+    border-radius:10px;padding:6px;min-width:220px;box-shadow:0 10px 30px -8px #000000aa;display:none}
+  .pl-ctx-row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    background:transparent;border:0;color:var(--ink);padding:9px 10px;border-radius:6px;
+    cursor:pointer;font-size:13.5px;font-family:var(--font-body)}
+  .pl-ctx-row:hover{background:var(--red);color:#140C09}
+  .pl-ctx-icon{flex:none;width:28px;height:28px;border-radius:50%;background:var(--bg);
+    display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--dim)}
+  .pl-ctx-row:hover .pl-ctx-icon{background:#140C0933;color:#140C09}
+
+  #pl-ctx-name{padding:10px}
+  #pl-ctx-name input{width:100%;box-sizing:border-box;background:var(--bg);
+    border:1px solid var(--line2);border-radius:6px;color:var(--ink);padding:9px 10px;
+    font-size:13.5px;font-family:var(--font-body)}
+  #pl-ctx-name input:focus{outline:none;border-color:var(--red)}
+  .pl-ctx-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+  .pl-ctx-actions button{padding:7px 14px;font-size:11.5px;border-radius:999px;cursor:pointer;
+    font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+  .pl-ctx-actions .cancel{background:transparent;border:1px solid var(--line2);color:var(--dim)}
+  .pl-ctx-actions .cancel:hover{border-color:var(--dim);color:var(--ink)}
+  .pl-ctx-actions .create{background:var(--red);border:1px solid var(--red);color:#140C09}
 
   .cover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
     gap:16px}
@@ -276,8 +291,21 @@
 </div>
 
 <div class="pl-ctxmenu" id="pl-ctxmenu">
-  <button data-action="new-playlist">New Playlist</button>
-  <button data-action="new-folder">New Folder</button>
+  <div id="pl-ctx-choices">
+    <button class="pl-ctx-row" data-action="playlist">
+      <span class="pl-ctx-icon">&#9835;</span><span>New Playlist</span>
+    </button>
+    <button class="pl-ctx-row" data-action="folder">
+      <span class="pl-ctx-icon">&#9656;</span><span>New Folder</span>
+    </button>
+  </div>
+  <div id="pl-ctx-name" style="display:none">
+    <input type="text" id="pl-ctx-input" autocomplete="off">
+    <div class="pl-ctx-actions">
+      <button class="cancel" id="pl-ctx-cancel">Cancel</button>
+      <button class="create" id="pl-ctx-create">Create</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -877,32 +905,64 @@ $('#pl-tree').addEventListener('click', e => {
 
 // Right-click the Playlists label, or any folder, to create a child there.
 // A playlist leaf has nowhere to create a child, so it gets no menu.
+// Two steps in the one popover, matching how Spotify's own "+ Create" panel
+// works: pick a kind first, then the panel becomes a name field in place -
+// no native prompt(), which looks and behaves nothing like the rest of this UI.
+let ctxKind = null;
+
+function resetCtxMenu(){
+  $('#pl-ctx-choices').style.display = 'block';
+  $('#pl-ctx-name').style.display = 'none';
+  $('#pl-ctx-input').value = '';
+  ctxKind = null;
+}
+
+function hideCtxMenu(){
+  $('#pl-ctxmenu').style.display = 'none';
+  resetCtxMenu();
+}
+
 $('#pl-tree').addEventListener('contextmenu', e => {
   const folder = e.target.closest('.pl-node[data-kind="folder"]');
   const root = e.target.closest('#pl-root-label');
   if (!folder && !root) return;
   e.preventDefault();
   ctxParentId = folder ? folder.dataset.id : null;
+  resetCtxMenu();
   const menu = $('#pl-ctxmenu');
   menu.style.left = e.clientX + 'px';
   menu.style.top = e.clientY + 'px';
   menu.style.display = 'block';
 });
 document.addEventListener('click', e => {
-  if (!e.target.closest('#pl-ctxmenu')) $('#pl-ctxmenu').style.display = 'none';
+  if (!e.target.closest('#pl-ctxmenu')) hideCtxMenu();
 });
 
-$('#pl-ctxmenu').addEventListener('click', async e => {
-  const action = e.target.dataset.action;
-  if (!action) return;
-  $('#pl-ctxmenu').style.display = 'none';
+$('#pl-ctx-choices').addEventListener('click', e => {
+  const row = e.target.closest('.pl-ctx-row');
+  if (!row) return;
+  ctxKind = row.dataset.action;
+  $('#pl-ctx-choices').style.display = 'none';
+  $('#pl-ctx-name').style.display = 'block';
+  $('#pl-ctx-input').placeholder = ctxKind === 'folder' ? 'Folder name' : 'Playlist name';
+  $('#pl-ctx-input').focus();
+});
 
-  const kind = action === 'new-folder' ? 'folder' : 'playlist';
-  const name = prompt(kind === 'folder' ? 'Folder name:' : 'Playlist name:');
-  if (!name || !name.trim()) return;
+$('#pl-ctx-cancel').onclick = () => hideCtxMenu();
+$('#pl-ctx-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitPlaylistCreate();
+  if (e.key === 'Escape') hideCtxMenu();
+});
+$('#pl-ctx-create').onclick = () => submitPlaylistCreate();
+
+async function submitPlaylistCreate(){
+  const name = $('#pl-ctx-input').value.trim();
+  if (!name) return;
+  const kind = ctxKind;
+  hideCtxMenu();
 
   const { data, error } = await supabaseClient.from('playlists').insert({
-    parent_id: ctxParentId, kind, name: name.trim(), sort_index: playlistRows.length,
+    parent_id: ctxParentId, kind, name, sort_index: playlistRows.length,
   }).select().single();
   if (error){ alert(error.message); return; }
 
@@ -913,7 +973,7 @@ $('#pl-ctxmenu').addEventListener('click', async e => {
     renderPlaylistTree();   // so the new playlist's active highlight actually shows
     renderPlaylistMain();
   }
-});
+}
 
 function renderChip(){
   $('#library-chip').innerHTML = libraryArtistFilter
