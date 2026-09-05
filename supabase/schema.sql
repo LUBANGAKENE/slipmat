@@ -63,3 +63,54 @@ alter table public.tracks enable row level security;
 
 create policy "tracks: owner full access" on public.tracks
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+
+-- Folders and playlists are nodes of one self-referencing tree, the way
+-- Rekordbox itself models them - a folder is just a node other nodes can sit
+-- under. parent_id null means "sits directly under the Playlists root".
+--
+-- This is the one place a join table is actually the right call, unlike
+-- albums/tracks above: a track can sit in any number of playlists, so
+-- playlist_tracks below is a genuine many-to-many, not ownership.
+create table public.playlists (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  parent_id   uuid references public.playlists(id) on delete cascade,
+  kind        text not null check (kind in ('folder', 'playlist')),
+  name        text not null,
+  sort_index  int not null default 0,
+  created_at  timestamptz not null default now()
+);
+
+create index playlists_user_id_parent_id_idx on public.playlists (user_id, parent_id);
+
+alter table public.playlists enable row level security;
+
+create policy "playlists: owner full access" on public.playlists
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+
+-- Which tracks are in which playlist, and in what order. user_id is
+-- duplicated here for the same reason as on tracks - a plain equality
+-- policy instead of a join back through playlists on every row.
+--
+-- sort_index is bigint, not int: a drag-and-drop append writes Date.now() so
+-- ordering never needs to ask "how many tracks are already in here" before
+-- inserting one more. A millisecond timestamp is already ~1.8 trillion
+-- today, which overflows a 4-byte int (max ~2.1 billion) - int4 was simply
+-- the wrong type for the value actually being stored in it.
+create table public.playlist_tracks (
+  id           uuid primary key default gen_random_uuid(),
+  playlist_id  uuid not null references public.playlists(id) on delete cascade,
+  track_id     uuid not null references public.tracks(id) on delete cascade,
+  user_id      uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  sort_index   bigint not null default 0,
+  added_at     timestamptz not null default now()
+);
+
+create index playlist_tracks_playlist_id_idx on public.playlist_tracks (playlist_id);
+
+alter table public.playlist_tracks enable row level security;
+
+create policy "playlist_tracks: owner full access" on public.playlist_tracks
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());

@@ -82,6 +82,57 @@
   table.tracklist td.num{font-family:var(--font-mono);text-align:right}
   table.tracklist td.key{color:var(--teal);font-weight:600}
 
+  .pl-layout{display:flex;border:1px solid var(--line);border-radius:10px;
+    overflow:hidden;min-height:320px}
+  .pl-tree{width:230px;flex:none;background:var(--panel);border-right:1px solid var(--line);
+    padding:8px 0;overflow-y:auto}
+  .pl-node{padding:7px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;
+    gap:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+  .pl-node:hover{background:#171B20}
+  .pl-node.active{background:var(--red);color:#140C09}
+  .pl-node .ico{flex:none;width:14px;text-align:center;color:var(--dim);font-size:11px}
+  .pl-node .disclosure{display:inline-block;flex:none;width:14px;height:14px;position:relative}
+  .pl-node .disclosure:before{content:"";position:absolute;left:4px;top:3px;
+    border-left:4px solid var(--dim);border-top:4px solid transparent;
+    border-bottom:4px solid transparent;transition:transform .1s}
+  .pl-node.expanded .disclosure:before{transform:rotate(90deg);left:2px;top:5px}
+  .pl-node.active .ico{color:#140C09cc}
+  .pl-node .name{overflow:hidden;text-overflow:ellipsis}
+  .pl-node .pl-count{margin-left:auto;color:var(--dim);font-family:var(--font-mono);font-size:11px}
+  .pl-node.active .pl-count{color:#140C09cc}
+  .pl-node.drag-over{outline:2px solid var(--red);outline-offset:-2px;background:#E8452B22}
+  .pl-node.drag-added{background:var(--line2);transition:background .3s}
+  .pl-section-label{padding:14px 12px 6px;font-family:var(--font-mono);font-size:10.5px;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--dim);cursor:context-menu}
+
+  #pl-main table.tracklist tbody tr[draggable="true"]{cursor:grab}
+  #pl-main table.tracklist tbody tr[draggable="true"]:active{cursor:grabbing}
+  .pl-main{flex:1;min-width:0;overflow-x:auto}
+  .pl-main table.tracklist{border:0}
+  .pl-main .empty{padding:40px 20px}
+
+  .pl-ctxmenu{position:fixed;z-index:50;background:var(--panel);border:1px solid var(--line2);
+    border-radius:10px;padding:6px;min-width:220px;box-shadow:0 10px 30px -8px #000000aa;display:none}
+  .pl-ctx-row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+    background:transparent;border:0;color:var(--ink);padding:9px 10px;border-radius:6px;
+    cursor:pointer;font-size:13.5px;font-family:var(--font-body)}
+  .pl-ctx-row:hover{background:var(--red);color:#140C09}
+  .pl-ctx-icon{flex:none;width:28px;height:28px;border-radius:50%;background:var(--bg);
+    display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--dim)}
+  .pl-ctx-row:hover .pl-ctx-icon{background:#140C0933;color:#140C09}
+
+  #pl-ctx-name{padding:10px}
+  #pl-ctx-name input{width:100%;box-sizing:border-box;background:var(--bg);
+    border:1px solid var(--line2);border-radius:6px;color:var(--ink);padding:9px 10px;
+    font-size:13.5px;font-family:var(--font-body)}
+  #pl-ctx-name input:focus{outline:none;border-color:var(--red)}
+  .pl-ctx-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+  .pl-ctx-actions button{padding:7px 14px;font-size:11.5px;border-radius:999px;cursor:pointer;
+    font-family:var(--font-mono);letter-spacing:.08em;text-transform:uppercase}
+  .pl-ctx-actions .cancel{background:transparent;border:1px solid var(--line2);color:var(--dim)}
+  .pl-ctx-actions .cancel:hover{border-color:var(--dim);color:var(--ink)}
+  .pl-ctx-actions .create{background:var(--red);border:1px solid var(--red);color:#140C09}
+
   .cover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
     gap:16px}
   .cover-card{background:var(--panel);border:1px solid var(--line);border-radius:9px;
@@ -221,15 +272,45 @@
       <button class="pill-filter active" data-view="albums">Albums</button>
       <button class="pill-filter" data-view="artists">Artists</button>
       <button class="pill-filter" data-view="tracks">Tracks</button>
+      <button class="pill-filter" data-view="playlists">Playlists</button>
       <span id="library-chip"></span>
       <button class="ghost" id="libListLink" style="margin-left:auto">View as list</button>
     </nav>
     <div class="cover-grid" id="library-grid"></div>
     <div id="library-tracks" style="display:none"></div>
+    <div class="pl-layout" id="library-playlists" style="display:none">
+      <div class="pl-tree" id="pl-tree">
+        <div class="pl-node" data-node-type="all" id="pl-alltracks">
+          <span class="ico">&#9835;</span><span>All Tracks</span>
+          <span class="pl-count" id="pl-alltracks-count"></span>
+        </div>
+        <div class="pl-section-label" id="pl-root-label">Playlists</div>
+        <div id="pl-tree-body"></div>
+      </div>
+      <div class="pl-main" id="pl-main"></div>
+    </div>
     <div class="panel" id="library-panel" style="display:none">
       <div class="empty">No saved albums yet.</div>
     </div>
   </section>
+</div>
+
+<div class="pl-ctxmenu" id="pl-ctxmenu">
+  <div id="pl-ctx-choices">
+    <button class="pl-ctx-row" data-action="playlist">
+      <span class="pl-ctx-icon">&#9835;</span><span>New Playlist</span>
+    </button>
+    <button class="pl-ctx-row" data-action="folder">
+      <span class="pl-ctx-icon">&#9656;</span><span>New Folder</span>
+    </button>
+  </div>
+  <div id="pl-ctx-name" style="display:none">
+    <input type="text" id="pl-ctx-input" autocomplete="off">
+    <div class="pl-ctx-actions">
+      <button class="cancel" id="pl-ctx-cancel">Cancel</button>
+      <button class="create" id="pl-ctx-create">Create</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -423,7 +504,9 @@ function showLibraryView(view){
   $$('.pill-filter').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   $('#library-grid').style.display = (view === 'albums' || view === 'artists') ? 'grid' : 'none';
   $('#library-tracks').style.display = view === 'tracks' ? 'block' : 'none';
+  $('#library-playlists').style.display = view === 'playlists' ? 'flex' : 'none';
   $('#library-panel').style.display = view === 'list' ? 'block' : 'none';
+  if (view === 'playlists') loadPlaylistsIfNeeded();
   renderLibraryViews();
 }
 
@@ -587,12 +670,16 @@ function renderLibraryViews(){
   if (!libraryAlbums.length){
     $('#library-grid').innerHTML = '<div class="empty">No saved albums yet.</div>';
     $('#library-tracks').innerHTML = '<div class="empty">No saved albums yet.</div>';
+    $('#pl-main').innerHTML = '<div class="empty">No saved albums yet.</div>';
     $('#library-panel').innerHTML = '<div class="empty">No saved albums yet.</div>';
     return;
   }
 
   if (libView === 'tracks'){
+    tracksRenderTarget = '#library-tracks';
     renderTracksTable();
+  } else if (libView === 'playlists'){
+    renderPlaylistMain();
   } else if (libView === 'artists'){
     const groups = groupByArtist(libraryAlbums);
     $('#library-grid').innerHTML = groups.map(renderArtistTile).join('');
@@ -654,44 +741,309 @@ function sortTracks(rows){
   });
 }
 
+// "All Tracks" is reached two ways - the standalone Tracks pill, and the
+// Playlists view's own All Tracks node - and both show the identical
+// sortable flat table. tracksRenderTarget says which container currently
+// owns it, so a header click re-renders into the right place either way.
+let tracksRenderTarget = '#library-tracks';
+
 function setTracksSort(col){
   if (tracksSort.col === col) tracksSort.dir *= -1;
   else tracksSort = { col, dir: 1 };
   renderTracksTable();
 }
 
-function renderTracksTable(){
-  const rows = sortTracks(flattenTracks(libraryAlbums));
-  const arrow = col => tracksSort.col === col
+// Shared by the flat "All Tracks" table (sortable) and a single playlist's
+// contents (not sortable - a playlist's whole point is a chosen order, so
+// letting BPM/Key sort scramble it would work against the reason it exists).
+function tracksTableHtml(rows, opts){
+  opts = opts || {};
+  const sortable = opts.sortable !== false;
+  const draggable = !!opts.draggable;
+  const arrow = col => sortable && tracksSort.col === col
     ? `<span class="arrow">${tracksSort.dir === 1 ? '▲' : '▼'}</span>` : '';
+  const th = (label, sortKey) => sortable && sortKey
+    ? `<th class="sortable" data-sort="${sortKey}">${esc(label)}${arrow(sortKey)}</th>`
+    : `<th>${esc(label)}</th>`;
 
   const body = rows.length
-    ? rows.map(t => `<tr>
+    ? rows.map(t => `<tr${draggable && t.id ? ` draggable="true" data-track-id="${t.id}"` : ''}>
         <td>${esc(t.title || '?')}</td>
         <td>${esc(t.artist || 'Unknown artist')}</td>
         <td>${esc(t.album || '')}</td>
         <td class="num">${t.bpm != null ? esc(String(t.bpm)) : '—'}</td>
         <td class="num key">${esc(t.key_camelot || '—')}</td>
       </tr>`).join('')
-    : `<tr><td colspan="5" class="empty">No tracks saved.</td></tr>`;
+    : `<tr><td colspan="5" class="empty">${esc(opts.emptyText || 'No tracks.')}</td></tr>`;
 
-  $('#library-tracks').innerHTML = `
+  return `
     <table class="tracklist">
-      <thead><tr>
-        <th>Title</th>
-        <th>Artist</th>
-        <th>Album</th>
-        <th class="sortable" data-sort="bpm">BPM${arrow('bpm')}</th>
-        <th class="sortable" data-sort="key">Key${arrow('key')}</th>
-      </tr></thead>
+      <thead><tr>${th('Title')}${th('Artist')}${th('Album')}${th('BPM','bpm')}${th('Key','key')}</tr></thead>
       <tbody>${body}</tbody>
     </table>`;
 }
 
-$('#library-tracks').addEventListener('click', e => {
+function renderTracksTable(){
+  const rows = sortTracks(flattenTracks(libraryAlbums));
+  $(tracksRenderTarget).innerHTML = tracksTableHtml(rows, {
+    sortable: true, emptyText: 'No tracks saved.',
+    // Only All Tracks reached via the Playlists view has anywhere to drop
+    // onto - the standalone Tracks pill has no tree in view at all.
+    draggable: tracksRenderTarget === '#pl-main',
+  });
+}
+
+function onTracksTableClick(e){
   const th = e.target.closest('th[data-sort]');
   if (th) setTracksSort(th.dataset.sort);
+}
+$('#library-tracks').addEventListener('click', onTracksTableClick);
+$('#pl-main').addEventListener('click', onTracksTableClick);
+
+// ---------------------------------------------------------------- playlists
+// Folders and playlists are one self-referencing tree (see schema.sql) -
+// parent_id null sits directly under the Playlists root. Fetched once per
+// Library visit, not on every render; a create refetches the whole tree,
+// which is cheap at the sizes this is ever going to reach.
+let playlistRows = [];
+let playlistsLoaded = false;
+let selectedPlaylistNode = 'all';       // 'all', or a playlists.id
+let expandedFolders = new Set();
+let ctxParentId = null;                 // where New Playlist/New Folder will insert
+
+async function loadPlaylistsIfNeeded(){
+  if (playlistsLoaded) return;
+  playlistsLoaded = true;
+  await loadPlaylists();
+}
+
+async function loadPlaylists(){
+  const { data, error } = await supabaseClient
+    .from('playlists')
+    .select('*')
+    .order('sort_index')
+    .order('created_at');
+  if (error){
+    $('#pl-tree-body').innerHTML = `<div class="empty" style="padding:14px">${esc(error.message)}</div>`;
+    return;
+  }
+  playlistRows = data || [];
+  renderPlaylistTree();
+}
+
+function renderPlaylistTree(){
+  $('#pl-alltracks-count').textContent = flattenTracks(libraryAlbums).length;
+  $('#pl-alltracks').classList.toggle('active', selectedPlaylistNode === 'all');
+
+  const byParent = new Map();
+  for (const row of playlistRows){
+    const key = row.parent_id || '__root__';
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key).push(row);
+  }
+
+  function renderNodes(parentKey, depth){
+    return (byParent.get(parentKey) || []).map(n => {
+      const isFolder = n.kind === 'folder';
+      const expanded = expandedFolders.has(n.id);
+      // A Unicode triangle glyph renders inconsistently thin/tiny across
+      // fonts - a CSS-drawn one (border trick) stays a crisp, fixed size.
+      const icon = isFolder
+        ? '<span class="ico disclosure"></span>'
+        : '<span class="ico">&#9835;</span>';
+      const kids = isFolder && expanded ? renderNodes(n.id, depth + 1) : '';
+      return `
+        <div class="pl-node${n.id === selectedPlaylistNode ? ' active' : ''}${expanded ? ' expanded' : ''}"
+             style="padding-left:${12 + depth * 16}px" data-id="${n.id}" data-kind="${n.kind}">
+          ${icon}<span class="name">${esc(n.name)}</span>
+        </div>${kids}`;
+    }).join('');
+  }
+
+  $('#pl-tree-body').innerHTML = renderNodes('__root__', 0);
+}
+
+function renderPlaylistMain(){
+  if (selectedPlaylistNode === 'all'){
+    tracksRenderTarget = '#pl-main';
+    renderTracksTable();
+  } else {
+    showPlaylistContents(selectedPlaylistNode);
+  }
+}
+
+async function showPlaylistContents(playlistId){
+  $('#pl-main').innerHTML = '<div class="empty">Loading…</div>';
+  const { data, error } = await supabaseClient
+    .from('playlist_tracks')
+    .select('sort_index, tracks(title, bpm, key_camelot, albums(artist, album))')
+    .eq('playlist_id', playlistId)
+    .order('sort_index');
+  if (selectedPlaylistNode !== playlistId) return;   // a later click already moved on
+  if (error){ $('#pl-main').innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+
+  const rows = (data || []).map(pt => ({
+    title: pt.tracks?.title, bpm: pt.tracks?.bpm, key_camelot: pt.tracks?.key_camelot,
+    artist: pt.tracks?.albums?.artist, album: pt.tracks?.albums?.album,
+  }));
+  $('#pl-main').innerHTML = tracksTableHtml(rows, {
+    sortable: false, emptyText: 'No tracks in this playlist yet.',
+  });
+}
+
+// ----------------------------------------------------- drag a track, drop it
+// Source: a draggable row in the All Tracks table. Target: a playlist leaf in
+// the tree - not a folder (can't hold tracks directly) and not All Tracks
+// itself (the full read-only aggregate, not a real list to add to).
+let draggedTrackId = null;
+
+$('#pl-main').addEventListener('dragstart', e => {
+  const tr = e.target.closest('tr[data-track-id]');
+  if (!tr) return;
+  draggedTrackId = tr.dataset.trackId;
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', draggedTrackId);
 });
+$('#pl-main').addEventListener('dragend', () => {
+  draggedTrackId = null;
+  $$('.pl-node.drag-over').forEach(n => n.classList.remove('drag-over'));
+});
+
+$('#pl-tree').addEventListener('dragover', e => {
+  const node = e.target.closest('.pl-node[data-kind="playlist"]');
+  // Clearing every other node first, rather than tracking enter/leave per
+  // node, sidesteps the classic HTML5 DnD flicker: dragleave fires when the
+  // pointer crosses onto a *child* element (the name span, the icon), not
+  // only when it truly leaves the row, so per-node enter/leave counting
+  // fights itself constantly.
+  $$('.pl-node.drag-over').forEach(n => { if (n !== node) n.classList.remove('drag-over'); });
+  if (!node) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  node.classList.add('drag-over');
+});
+$('#pl-tree').addEventListener('dragleave', e => {
+  if (!$('#pl-tree').contains(e.relatedTarget)){
+    $$('.pl-node.drag-over').forEach(n => n.classList.remove('drag-over'));
+  }
+});
+
+$('#pl-tree').addEventListener('drop', async e => {
+  const node = e.target.closest('.pl-node[data-kind="playlist"]');
+  if (!node) return;
+  e.preventDefault();
+  node.classList.remove('drag-over');
+
+  const trackId = e.dataTransfer.getData('text/plain') || draggedTrackId;
+  draggedTrackId = null;
+  if (!trackId) return;
+
+  const playlistId = node.dataset.id;
+  const { error } = await supabaseClient.from('playlist_tracks').insert({
+    // Date.now() as sort_index: always sorts after whatever's already there
+    // without a round trip to ask how many tracks the playlist currently
+    // has just to append one more.
+    playlist_id: playlistId, track_id: trackId, sort_index: Date.now(),
+  });
+  if (error){ alert(error.message); return; }
+
+  node.classList.add('drag-added');
+  setTimeout(() => node.classList.remove('drag-added'), 400);
+  if (selectedPlaylistNode === playlistId) showPlaylistContents(playlistId);
+});
+
+$('#pl-tree').addEventListener('click', e => {
+  if (e.target.closest('#pl-alltracks')){
+    selectedPlaylistNode = 'all';
+    renderPlaylistTree();
+    renderPlaylistMain();
+    return;
+  }
+  const node = e.target.closest('.pl-node[data-id]');
+  if (!node) return;
+
+  if (node.dataset.kind === 'folder'){
+    const id = node.dataset.id;
+    if (expandedFolders.has(id)) expandedFolders.delete(id); else expandedFolders.add(id);
+    renderPlaylistTree();
+  } else {
+    selectedPlaylistNode = node.dataset.id;
+    renderPlaylistTree();
+    renderPlaylistMain();
+  }
+});
+
+// Right-click the Playlists label, or any folder, to create a child there.
+// A playlist leaf has nowhere to create a child, so it gets no menu.
+// Two steps in the one popover, matching how Spotify's own "+ Create" panel
+// works: pick a kind first, then the panel becomes a name field in place -
+// no native prompt(), which looks and behaves nothing like the rest of this UI.
+let ctxKind = null;
+
+function resetCtxMenu(){
+  $('#pl-ctx-choices').style.display = 'block';
+  $('#pl-ctx-name').style.display = 'none';
+  $('#pl-ctx-input').value = '';
+  ctxKind = null;
+}
+
+function hideCtxMenu(){
+  $('#pl-ctxmenu').style.display = 'none';
+  resetCtxMenu();
+}
+
+$('#pl-tree').addEventListener('contextmenu', e => {
+  const folder = e.target.closest('.pl-node[data-kind="folder"]');
+  const root = e.target.closest('#pl-root-label');
+  if (!folder && !root) return;
+  e.preventDefault();
+  ctxParentId = folder ? folder.dataset.id : null;
+  resetCtxMenu();
+  const menu = $('#pl-ctxmenu');
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  menu.style.display = 'block';
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#pl-ctxmenu')) hideCtxMenu();
+});
+
+$('#pl-ctx-choices').addEventListener('click', e => {
+  const row = e.target.closest('.pl-ctx-row');
+  if (!row) return;
+  ctxKind = row.dataset.action;
+  $('#pl-ctx-choices').style.display = 'none';
+  $('#pl-ctx-name').style.display = 'block';
+  $('#pl-ctx-input').placeholder = ctxKind === 'folder' ? 'Folder name' : 'Playlist name';
+  $('#pl-ctx-input').focus();
+});
+
+$('#pl-ctx-cancel').onclick = () => hideCtxMenu();
+$('#pl-ctx-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitPlaylistCreate();
+  if (e.key === 'Escape') hideCtxMenu();
+});
+$('#pl-ctx-create').onclick = () => submitPlaylistCreate();
+
+async function submitPlaylistCreate(){
+  const name = $('#pl-ctx-input').value.trim();
+  if (!name) return;
+  const kind = ctxKind;
+  hideCtxMenu();
+
+  const { data, error } = await supabaseClient.from('playlists').insert({
+    parent_id: ctxParentId, kind, name, sort_index: playlistRows.length,
+  }).select().single();
+  if (error){ alert(error.message); return; }
+
+  if (ctxParentId) expandedFolders.add(ctxParentId);   // reveal the new child
+  await loadPlaylists();
+  if (kind === 'playlist'){
+    selectedPlaylistNode = data.id;
+    renderPlaylistTree();   // so the new playlist's active highlight actually shows
+    renderPlaylistMain();
+  }
+}
 
 function renderChip(){
   $('#library-chip').innerHTML = libraryArtistFilter
