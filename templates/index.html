@@ -81,11 +81,33 @@
   table.tracklist tr:hover td{background:#171B20}
   table.tracklist td.num{font-family:var(--font-mono);text-align:right}
   table.tracklist td.key{color:var(--teal);font-weight:600}
+  /* BPM and Key are the whole point of this table - Album is the column
+     that can afford to go missing on a narrow phone, not those two. Default
+     table-layout:auto sizes each column to fit its widest content regardless
+     of the max-width/ellipsis above, so "Michael Jackson" just keeps pushing
+     the table wider instead of truncating - fixed layout with explicit
+     widths is what actually makes the ellipsis engage and guarantees BPM/Key
+     a reserved slot instead of whatever's left over.  */
+  @media(max-width:760px){
+    table.tracklist th:nth-child(3), table.tracklist td:nth-child(3){display:none}
+    table.tracklist{table-layout:fixed}
+    table.tracklist th:nth-child(1), table.tracklist td:nth-child(1){width:36%}
+    table.tracklist th:nth-child(2), table.tracklist td:nth-child(2){width:26%}
+    table.tracklist th:nth-child(4), table.tracklist td:nth-child(4){width:19%;padding-left:6px;padding-right:6px}
+    table.tracklist th:nth-child(5), table.tracklist td:nth-child(5){width:19%;padding-left:6px;padding-right:6px}
+  }
 
   .pl-layout{display:flex;border:1px solid var(--line);border-radius:10px;
     overflow:hidden;min-height:320px}
   .pl-tree{width:230px;flex:none;background:var(--panel);border-right:1px solid var(--line);
     padding:8px 0;overflow-y:auto}
+  /* Side-by-side only works with room to breathe - on a phone the tree ate
+     most of the screen and left the content pane showing a sliver of
+     truncated titles with nothing else. Stacked, both get the full width. */
+  @media(max-width:760px){
+    .pl-layout{flex-direction:column}
+    .pl-tree{width:100%;max-height:200px;border-right:0;border-bottom:1px solid var(--line)}
+  }
   .pl-node{padding:7px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;
     gap:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
   .pl-node:hover{background:#171B20}
