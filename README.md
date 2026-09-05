@@ -128,16 +128,29 @@ record once signed in; a **Library** tab lists everything saved, with a delete
 on each entry. The browser talks to Supabase directly for all of this — Flask
 never touches it, so `/api/scan` and `/api/bpm` are unchanged either way.
 
-The Library tab is Spotify's shape on top of Rekordbox's data. Three pills:
-**Albums** and **Artists** browse cover-art grids — Artists is grouped from
-the same rows, most recently active first; clicking one filters Albums down to
-theirs, with a chip to clear it. **Tracks** is Rekordbox's Collection view —
-every track flattened out of its album into one sortable table; click the BPM
-or Key header to sort by it, click again to reverse. Key sorts around the
-Camelot wheel (`1A, 1B, 2A, 2B, …`), not alphabetically, so `10A` doesn't land
-ahead of `2A`. Clicking any album tile, or the **View as list** link, drops
-into the full Rekordbox-style detail instead: every track with its BPM and
-Camelot key, grouped back under its album, same as the scan results table.
+The Library tab is Spotify's shape on top of Rekordbox's data. **Albums** and
+**Artists** browse cover-art grids — Artists is grouped from the same rows,
+most recently active first; clicking one filters Albums down to theirs, with
+a chip to clear it. **Tracks** is Rekordbox's Collection view — every track
+flattened out of its album into one sortable table; click the BPM or Key
+header to sort by it, click again to reverse. Key sorts around the Camelot
+wheel (`1A, 1B, 2A, 2B, …`), not alphabetically, so `10A` doesn't land ahead
+of `2A`. Clicking any album tile, or the **View as list** link, drops into the
+full Rekordbox-style detail instead: every track with its BPM and Camelot key,
+grouped back under its album, same as the scan results table.
+
+**Playlists** is Rekordbox's own tree: **All Tracks** first (the same flat
+table as the Tracks pill — one function renders both), then folders and
+playlists underneath, nested arbitrarily deep. Right-click **Playlists** or
+any folder for **New Playlist** / **New Folder**; a playlist is a leaf, so it
+gets no menu of its own. Unlike Albums/Artists/Tracks — all just different
+views over the albums you've saved — playlists are real rows: a track can sit
+in any number of them, which is the one place in this schema a join table is
+actually the right call (`playlists`, a self-referencing tree of folders and
+playlists, and `playlist_tracks`, which track sits in which playlist and in
+what order). A playlist's own contents render in that stored order, not
+sortable — sorting would defeat the point of a deliberately ordered set.
+Adding tracks to a playlist isn't built yet; this pass is the tree itself.
 
 Album covers come from the iTunes Search API (free, no key, CORS-open)
 matched on artist + album, resolved once and cached back onto the row. Artist
@@ -147,16 +160,16 @@ is blocked; a `<script>` tag is the standard workaround) and cached in
 `localStorage`, since there's no artist row in the database to cache it on —
 Artists is computed client-side from the albums already fetched, not its own
 table. Both degrade the same way: no match found leaves the plain tile rather
-than a wrong photo. There's no Playlists pill — nothing in the app builds or
-orders a set yet, so a pill that did nothing when clicked would be worse than
-not having one.
+than a wrong photo.
 
-**Already ran `schema.sql` before?** `cover_url` was added to `albums` after
-the first version of this feature — run
-[`supabase/migrations/0002_cover_url.sql`](supabase/migrations/0002_cover_url.sql)
-once in the SQL Editor to add it. Without it the grid still works — covers
-just get re-fetched every visit instead of cached, and the browser console
-will say why.
+**Already ran `schema.sql` before?** Run whichever of these you're missing, in
+order, in the SQL Editor — each is a no-op if you're already caught up:
+- [`supabase/migrations/0002_cover_url.sql`](supabase/migrations/0002_cover_url.sql)
+  — `cover_url` on `albums`. Without it the grid still works, covers just
+  re-fetch every visit instead of caching, and the console says why.
+- [`supabase/migrations/0003_playlists.sql`](supabase/migrations/0003_playlists.sql)
+  — the `playlists` and `playlist_tracks` tables. Without it the Playlists
+  pill shows a permission/relation error instead of the tree.
 
 ---
 
@@ -219,7 +232,7 @@ In the live path:
 | `templates/index.html` | The dashboard (`/app`) — also talks to Supabase directly for auth and the library |
 | `templates/home.html` | The homepage (`/`) |
 | `templates/brand.html` | Brand identity reference — palette, type, logo, voice (`/brand`) |
-| `supabase/schema.sql` | `albums` / `tracks` tables and their RLS policies, run once in your project |
+| `supabase/schema.sql` | `albums`, `tracks`, `playlists`, `playlist_tracks` and their RLS policies, run once in your project |
 | `supabase/migrations/` | Changes to that schema since — run once each, in order, only if your project predates them |
 
 Standalone, not reachable from the dashboard:
