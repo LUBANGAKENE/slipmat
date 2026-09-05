@@ -152,7 +152,9 @@ actually the right call (`playlists`, a self-referencing tree of folders and
 playlists, and `playlist_tracks`, which track sits in which playlist and in
 what order). A playlist's own contents render in that stored order, not
 sortable — sorting would defeat the point of a deliberately ordered set.
-Adding tracks to a playlist isn't built yet; this pass is the tree itself.
+Drag a row out of **All Tracks** and drop it on a playlist in the tree to add
+it there — not onto a folder, which can't hold tracks directly, and not onto
+All Tracks itself, which is the read-only aggregate, not a real list.
 
 Album covers come from the iTunes Search API (free, no key, CORS-open)
 matched on artist + album, resolved once and cached back onto the row. Artist
