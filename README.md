@@ -139,12 +139,17 @@ ahead of `2A`. Clicking any album tile, or the **View as list** link, drops
 into the full Rekordbox-style detail instead: every track with its BPM and
 Camelot key, grouped back under its album, same as the scan results table.
 
-Cover art comes from the iTunes Search API (free, no key, CORS-open) matched
-on artist + album, resolved once per album and cached back onto its row —
-like the BPM lookup, it only knows about records that had a digital release,
-so an obscure pressing gets the plain tile rather than a wrong cover. There's
-no Playlists pill — nothing in the app builds or orders a set yet, so a pill
-that did nothing when clicked would be worse than not having one.
+Album covers come from the iTunes Search API (free, no key, CORS-open)
+matched on artist + album, resolved once and cached back onto the row. Artist
+photos come from Deezer's search API instead — iTunes has no artist images at
+all — resolved via JSONP (Deezer sends no CORS header, so a plain `fetch()`
+is blocked; a `<script>` tag is the standard workaround) and cached in
+`localStorage`, since there's no artist row in the database to cache it on —
+Artists is computed client-side from the albums already fetched, not its own
+table. Both degrade the same way: no match found leaves the plain tile rather
+than a wrong photo. There's no Playlists pill — nothing in the app builds or
+orders a set yet, so a pill that did nothing when clicked would be worse than
+not having one.
 
 **Already ran `schema.sql` before?** `cover_url` was added to `albums` after
 the first version of this feature — run

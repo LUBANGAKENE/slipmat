@@ -4,65 +4,89 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Slipmat</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400;62..125,600;62..125,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
+  /* Slipmat brand system — see /brand for the full identity doc.
+     Colour law: Amber = tempo data only, Teal = key data only, Red = the
+     only colour that ever means "act". Nothing here breaks that rule. */
   :root{
-    --bg:#0e0d0c; --panel:#171614; --line:#2b2825; --line2:#3a3631;
-    --ink:#ece6da; --dim:#8d857a; --amber:#d99b3f; --amber-dim:#7a5a24;
-    --ok:#5f9e6a; --bad:#c4614f;
+    --bg:#0E1013; --panel:#14171B; --line:#22262B; --line2:#2A2F35;
+    --ink:#EFEBE1; --dim:#6B7A82;
+    --red:#E8452B; --red-press:#C8371F; --red-dim:#E8452B55;
+    --amber:#E0A32B; --amber-dim:#E0A32B55;
+    --teal:#3E8C7E; --teal-dim:#3E8C7E55;
+    --ok:#3E8C7E; --bad:#E8452B;
+    --font-display:'Archivo',sans-serif;
+    --font-body:'IBM Plex Sans',system-ui,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,"Cascadia Mono",Consolas,monospace;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.5 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif}
+    font:15px/1.5 var(--font-body)}
   .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
 
-  header{display:flex;align-items:baseline;gap:14px;margin-bottom:22px;flex-wrap:wrap}
-  h1{font-size:19px;margin:0;letter-spacing:.02em;font-weight:600}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+  .brandmark{position:relative;width:26px;aspect-ratio:1/1;border-radius:50%;
+    background:var(--ink);flex:none}
+  .brandmark:before{content:"";position:absolute;inset:0;border-radius:50%;
+    background:repeating-radial-gradient(circle at 50% 50%,#D5CFC0 0 1.5px,var(--ink) 1.5px 3.5px)}
+  .brandmark:after{content:"";position:absolute;left:50%;top:50%;
+    transform:translate(-50%,-50%);width:46%;aspect-ratio:1/1;border-radius:50%;
+    background:var(--red);box-shadow:0 0 0 2px var(--ink) inset}
+  h1{font-family:var(--font-display);font-variation-settings:'wdth' 116,'wght' 800;
+    font-size:19px;margin:0;letter-spacing:-.02em;text-transform:uppercase;
+    color:var(--ink)}
   header .sub{color:var(--dim);font-size:13px}
 
   #auth{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px}
   #auth input{background:var(--bg);border:1px solid var(--line2);border-radius:6px;
-    color:var(--ink);padding:6px 9px;font-size:13px;width:128px}
+    color:var(--ink);padding:6px 9px;font-size:13px;width:128px;font-family:var(--font-body)}
   #auth input::placeholder{color:var(--dim)}
-  #auth .who{color:var(--dim)}
+  #auth .who{color:var(--dim);font-family:var(--font-mono);font-size:12px}
   #auth .err{color:var(--bad);font-size:12px;max-width:220px}
 
   .tabs{display:none;gap:6px;margin-bottom:16px}
   .tab{background:transparent;border:1px solid var(--line2);color:var(--dim);
-    border-radius:7px;padding:7px 14px;font-size:13px;cursor:pointer}
-  .tab.active{border-color:var(--amber);color:var(--ink)}
+    border-radius:999px;padding:8px 16px;font-family:var(--font-mono);font-size:11px;
+    letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+  .tab.active{border-color:var(--red);color:var(--red)}
 
   .lib-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
-  .lib-header h2{font-size:20px;margin:0;font-weight:700}
+  .lib-header h2{font-family:var(--font-display);font-variation-settings:'wdth' 112,'wght' 800;
+    font-size:20px;margin:0;letter-spacing:-.03em;text-transform:uppercase;color:var(--ink)}
 
   .pillbar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
   .pill-filter{background:var(--panel);border:1px solid var(--line2);color:var(--dim);
-    border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:600;cursor:pointer}
-  .pill-filter.active{background:var(--amber);color:#1a1611;border-color:var(--amber)}
-  .chip{background:var(--bg);border:1px solid var(--amber-dim);color:var(--amber);
-    border-radius:999px;padding:6px 12px;font-size:12.5px;cursor:pointer}
+    border-radius:999px;padding:8px 16px;font-family:var(--font-mono);font-size:11px;
+    letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+  .pill-filter.active{background:var(--red);color:#140C09;border-color:var(--red)}
+  .chip{background:var(--bg);border:1px solid var(--red);color:var(--red);
+    border-radius:999px;padding:6px 12px;font-family:var(--font-mono);font-size:11px;
+    letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
 
   #library-tracks{background:var(--panel);border:1px solid var(--line);border-radius:10px;
     overflow-x:auto}
   table.tracklist{width:100%;border-collapse:collapse;font-size:13.5px}
-  table.tracklist th{text-align:left;padding:10px 12px;color:var(--dim);font-size:11.5px;
-    text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line);
+  table.tracklist th{text-align:left;padding:10px 12px;color:var(--dim);
+    font-family:var(--font-mono);font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.12em;border-bottom:1px solid var(--line);
     white-space:nowrap}
   table.tracklist th.sortable{cursor:pointer;user-select:none}
   table.tracklist th.sortable:hover{color:var(--ink)}
-  table.tracklist th .arrow{color:var(--amber);margin-left:3px}
-  table.tracklist td{padding:9px 12px;border-bottom:1px solid #221f1d;white-space:nowrap;
+  table.tracklist th .arrow{color:var(--red);margin-left:3px}
+  table.tracklist td{padding:9px 12px;border-bottom:1px solid #1A1E23;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;max-width:280px}
   table.tracklist tr:last-child td{border-bottom:0}
-  table.tracklist tr:hover td{background:#1d1b18}
-  table.tracklist td.num{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
-    text-align:right}
-  table.tracklist td.key{color:var(--amber);font-weight:600}
+  table.tracklist tr:hover td{background:#171B20}
+  table.tracklist td.num{font-family:var(--font-mono);text-align:right}
+  table.tracklist td.key{color:var(--teal);font-weight:600}
 
   .cover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
     gap:16px}
   .cover-card{background:var(--panel);border:1px solid var(--line);border-radius:9px;
     padding:10px;cursor:pointer;transition:.15s}
-  .cover-card:hover{border-color:var(--amber)}
+  .cover-card:hover{border-color:var(--red)}
   .cover-card .art{width:100%;aspect-ratio:1;border-radius:6px;overflow:hidden;
     background:var(--bg);display:flex;align-items:center;justify-content:center;
     color:var(--line2);font-size:11px;margin-bottom:9px}
@@ -86,7 +110,7 @@
 
   #drop{border:1.5px dashed var(--line2);border-radius:10px;padding:26px 18px;
     text-align:center;cursor:pointer;transition:.15s;color:var(--dim)}
-  #drop:hover,#drop.hot{border-color:var(--amber);color:var(--ink);background:#1d1b18}
+  #drop:hover,#drop.hot{border-color:var(--red);color:var(--ink);background:#171B20}
   #drop b{color:var(--ink);font-weight:600}
   #drop .hint{display:block;margin-top:6px;font-size:12.5px}
 
@@ -99,11 +123,14 @@
     font-size:13px;line-height:20px;padding:0}
 
   .row{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
-  button.go{background:var(--amber);color:#1a1611;border:0;border-radius:7px;
-    padding:10px 20px;font-size:14.5px;font-weight:600;cursor:pointer}
-  button.go:disabled{background:var(--amber-dim);color:#0009;cursor:not-allowed}
-  button.ghost{background:transparent;color:var(--dim);border:1px solid var(--line2);
-    border-radius:7px;padding:9px 14px;cursor:pointer;font-size:13.5px}
+  button.go{background:var(--red);color:#140C09;border:0;border-radius:999px;
+    padding:11px 22px;font-family:var(--font-display);font-variation-settings:'wdth' 108,'wght' 800;
+    font-size:14px;letter-spacing:.02em;text-transform:uppercase;cursor:pointer}
+  button.go:disabled{background:var(--red-dim);color:#00000066;cursor:not-allowed}
+  button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2);
+    border-radius:999px;padding:10px 16px;cursor:pointer;font-family:var(--font-mono);
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+  button.ghost:hover{border-color:var(--dim)}
 
   .status{color:var(--dim);font-size:13px;min-height:19px;margin-top:10px}
   .status.err{color:var(--bad)}
@@ -111,32 +138,34 @@
 
   #out{display:none;margin-top:18px}
   .rel{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:6px}
-  .rel .artist{color:var(--amber);font-size:13px;letter-spacing:.09em;
-    text-transform:uppercase;font-weight:600}
-  .rel .album{font-size:25px;font-weight:600;margin:3px 0 7px;line-height:1.2}
+  .rel .artist{color:var(--red);font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;font-weight:500}
+  .rel .album{font-family:var(--font-display);font-variation-settings:'wdth' 112,'wght' 800;
+    font-size:25px;margin:5px 0 7px;line-height:1.15;letter-spacing:-.02em;
+    text-transform:uppercase;color:var(--ink)}
   .rel .meta{color:var(--dim);font-size:13px}
   .rel .meta span+span:before{content:"·";margin:0 8px;color:var(--line2)}
 
   table{width:100%;border-collapse:collapse;margin-top:6px}
-  td{padding:8px 6px;border-bottom:1px solid #221f1d;vertical-align:baseline}
+  td{padding:8px 6px;border-bottom:1px solid #1A1E23;vertical-align:baseline}
   tr:last-child td{border-bottom:0}
-  td.pos{width:44px;color:var(--amber);font-weight:600;
-    font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:13px}
+  td.pos{width:44px;color:var(--dim);font-weight:600;
+    font-family:var(--font-mono);font-size:13px}
   td.dur{width:58px;text-align:right;color:var(--dim);
-    font-family:ui-monospace,Consolas,monospace;font-size:13px}
+    font-family:var(--font-mono);font-size:13px}
   td.bpm{width:104px;text-align:right;color:var(--line2);font-size:12px;font-style:italic}
-  td.bpm.got{color:var(--dim);font-style:normal;
-    font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
-  td.bpm .key{color:var(--amber);font-weight:600}
+  td.bpm.got{color:var(--amber);font-style:normal;
+    font-family:var(--font-mono);font-size:12.5px}
+  td.bpm .key{color:var(--teal);font-weight:600}
 
   .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
     margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
-    color:var(--dim);font-size:12.5px}
+    color:var(--dim);font-family:var(--font-mono);font-size:11px;letter-spacing:.04em}
   .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11.5px;
     border:1px solid var(--line2)}
-  .pill.high{color:var(--ok);border-color:#2f4a34}
+  .pill.high{color:var(--teal);border-color:var(--teal-dim)}
   .pill.medium{color:var(--amber);border-color:var(--amber-dim)}
-  .pill.low{color:var(--bad);border-color:#4a2a24}
+  .pill.low{color:var(--bad);border-color:var(--red-dim)}
   .notes{color:var(--dim);font-size:12.5px;margin-top:8px;font-style:italic}
   .empty{color:var(--dim);text-align:center;padding:26px 0;font-size:13.5px}
 </style>
@@ -145,6 +174,7 @@
 <div class="wrap">
 
   <header>
+    <div class="brandmark" aria-hidden="true"></div>
     <h1>Slipmat</h1>
     <span class="sub">photograph a record &rarr; artist, album, tracklist</span>
     <div id="auth"></div>
@@ -564,7 +594,9 @@ function renderLibraryViews(){
   if (libView === 'tracks'){
     renderTracksTable();
   } else if (libView === 'artists'){
-    $('#library-grid').innerHTML = groupByArtist(libraryAlbums).map(renderArtistTile).join('');
+    const groups = groupByArtist(libraryAlbums);
+    $('#library-grid').innerHTML = groups.map(renderArtistTile).join('');
+    resolveMissingArtistPhotos(groups);
   } else {
     const shown = libraryArtistFilter
       ? libraryAlbums.filter(a => (a.artist||'Unknown artist') === libraryArtistFilter)
@@ -676,9 +708,7 @@ function renderCoverTile(a){
     </div>`;
 }
 
-// One tile per artist, most recently active first. There's no artist photo
-// concept here - the tile borrows whichever of their albums has resolved
-// cover art, same placeholder as an album tile if none has yet.
+// One tile per artist, most recently active first.
 function groupByArtist(albums){
   const groups = new Map();
   for (const a of albums){
@@ -687,20 +717,99 @@ function groupByArtist(albums){
     groups.get(key).push(a);
   }
   return [...groups.entries()]
-    .map(([artist, albums]) => ({
-      artist, albums,
-      cover: albums.find(x => x.cover_url)?.cover_url || null,
-    }))
+    .map(([artist, albums]) => ({ artist, albums }))
     .sort((x, y) => new Date(y.albums[0].created_at) - new Date(x.albums[0].created_at));
 }
 
-function renderArtistTile(g){
+function renderArtistTile(g, i){
+  // A cache hit paints the real photo on the very first render, synchronously
+  // - no flash of placeholder-then-photo on a repeat visit.
+  const cached = getCachedArtistPhoto(g.artist);
   return `
     <div class="cover-card" data-artist="${esc(g.artist)}">
-      <div class="art">${coverHtml(g.cover)}</div>
+      <div class="art" id="art-artist-${i}">${coverHtml(cached || null)}</div>
       <div class="t-album">${esc(g.artist)}</div>
       <div class="t-artist">${g.albums.length} album${g.albums.length === 1 ? '' : 's'}</div>
     </div>`;
+}
+
+// -------------------------------------------------------------- artist photos
+// Deezer's search API actually has artist photos, unlike iTunes - but it sends
+// no Access-Control-Allow-Origin, so a plain fetch() is blocked by the browser.
+// JSONP (a <script> tag, not fetch) is the standard workaround and is what
+// Deezer's API explicitly supports for this. Cached in localStorage rather
+// than on the album row: there is no artist row to cache it on, artists here
+// are only ever computed client-side from the albums already fetched.
+let _jsonpSeq = 0;
+function deezerJsonp(url){
+  return new Promise((resolve, reject) => {
+    const cbName = '_deezerCb' + (_jsonpSeq++);
+    const script = document.createElement('script');
+    let settled = false;
+    function cleanup(){ settled = true; delete window[cbName]; script.remove(); }
+    window[cbName] = data => { cleanup(); resolve(data); };
+    script.onerror = () => { if (!settled){ cleanup(); reject(new Error('jsonp load failed')); } };
+    script.src = url + (url.includes('?') ? '&' : '?')
+               + 'output=jsonp&callback=' + cbName;
+    document.head.appendChild(script);
+    setTimeout(() => { if (!settled){ cleanup(); reject(new Error('jsonp timeout')); } }, 8000);
+  });
+}
+
+// undefined = never looked up, null = looked up and nothing found (still a
+// cache hit - don't ask Deezer about the same miss on every page load).
+function getCachedArtistPhoto(artist){
+  try{
+    // v2: the first version picked Deezer's top result with no verification,
+    // which is how a namesake artist's cover ended up captioned "Michael
+    // Jackson". Versioning the key means every browser that cached that wrong
+    // answer re-resolves under the fixed logic, rather than needing everyone
+    // to know to clear their cache by hand.
+    const v = localStorage.getItem('slipmat:artist-photo:v2:' + artist.toLowerCase());
+    return v == null ? undefined : (v === '_none_' ? null : v);
+  } catch{ return undefined; }   // storage unavailable - just resolve live every time
+}
+
+const _COMBINING_MARKS = new RegExp(
+  '[' + String.fromCharCode(0x0300) + '-' + String.fromCharCode(0x036f) + ']', 'g');
+
+function _normArtist(s){
+  return (s || '').normalize('NFKD').replace(_COMBINING_MARKS, '').trim().toLowerCase();
+}
+
+async function resolveArtistPhoto(artist){
+  let url = null;
+  try{
+    const body = await deezerJsonp('https://api.deezer.com/search/artist?'
+      + new URLSearchParams({ q: artist, limit: 10 }));
+    const results = body?.data || [];
+    // The same name can belong to more than one real artist on Deezer - there
+    // are two "Michael Jackson"s in its catalogue, one with 168 fans and one
+    // with 13 million, and Deezer's own ranking put the wrong one first. Only
+    // consider results whose name matches exactly (not fuzzily - unlike an
+    // OCR'd album title, an artist name has no reason to be a near-miss), and
+    // among those take the one with the most fans. No exact match at all
+    // means no photo, not a guess at a similarly-named stranger.
+    const want = _normArtist(artist);
+    const exact = results.filter(r => _normArtist(r.name) === want);
+    const best = exact.reduce((a, b) => (b.nb_fan || 0) > (a?.nb_fan ?? -1) ? b : a, null);
+    url = best?.picture_medium || null;
+  } catch{ /* offline, or Deezer's down - leave url null, try again next visit */ return null; }
+  try{ localStorage.setItem('slipmat:artist-photo:v2:' + artist.toLowerCase(), url || '_none_'); }
+  catch{ /* private browsing / storage disabled - just re-resolve next time */ }
+  return url;
+}
+
+async function resolveMissingArtistPhotos(groups){
+  const missing = groups
+    .map((g, i) => ({ g, i }))
+    .filter(({ g }) => getCachedArtistPhoto(g.artist) === undefined);
+  await Promise.all(missing.map(async ({ g, i }) => {
+    const url = await resolveArtistPhoto(g.artist);
+    if (!url) return;
+    const cell = document.getElementById('art-artist-' + i);
+    if (cell) cell.innerHTML = coverHtml(url);
+  }));
 }
 
 function renderLibraryAlbum(a){

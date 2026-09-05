@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slipmat — Brand Identity</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400;62..125,600;62..125,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  html, body { margin:0; padding:0; background:#0E1013; }
+  * { box-sizing:border-box; }
+  a { color:#E8452B; text-decoration:none; }
+  a:hover { color:#F26A50; }
+  @keyframes spin360 { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+  @keyframes ticker { from { transform:translateX(0); } to { transform:translateX(-50%); } }
+  .brand-btn { transition:background .12s, border-color .12s; }
+  .brand-btn.solid-red:hover { background:#C8371F !important; }
+  .brand-btn.ghost:hover { border-color:#6B7A82 !important; }
+  .brand-btn.solid-paper:hover { background:#D5CFC0 !important; }
+  .brand-placeholder {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:12px; color:#6B7A82;
+    font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+    background:repeating-linear-gradient(45deg,#1A1E23,#1A1E23 10px,#14171B 10px,#14171B 20px);
+  }
+</style>
+</head>
+<body>
+
+<div style="background:#0E1013;color:#EFEBE1;font-family:'IBM Plex Sans',system-ui,sans-serif;min-height:100vh;padding:0 0 96px">
+
+  <!-- ============ COVER ============ -->
+  <section data-screen-label="01 Cover" style="position:relative;overflow:hidden;padding:88px clamp(24px,5vw,80px) 72px;border-bottom:1px solid #2A2F35">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(#FFFFFF12 1px, transparent 1.1px);background-size:5px 5px;opacity:.5;pointer-events:none"></div>
+    <div style="position:relative;max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:56px;align-items:center">
+      <div style="display:flex;flex-direction:column;gap:28px">
+        <div style="display:flex;align-items:center;gap:14px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#6B7A82">
+          <span>Brand Identity</span><span style="width:40px;height:1px;background:#2A2F35"></span><span>v1.0 · 2026</span>
+        </div>
+        <h1 style="margin:0;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 118,'wght' 800;font-size:clamp(64px,10vw,148px);line-height:.86;letter-spacing:-.03em;text-transform:uppercase;color:#EFEBE1">Slip<span style="color:#E8452B">mat</span></h1>
+        <p style="margin:0;max-width:520px;font-size:19px;line-height:1.55;color:#B9BEC2;text-wrap:pretty">Point your phone at the record. Get the BPM, the key and where it sits in your set. The instrument panel digital DJs miss when they move to vinyl.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase">
+          <span style="padding:8px 14px;border:1px solid #E8452B;color:#E8452B;border-radius:999px">Digital brain</span>
+          <span style="padding:8px 14px;border:1px solid #2A2F35;color:#8A959C;border-radius:999px">Analog feel</span>
+          <span style="padding:8px 14px;border:1px solid #2A2F35;color:#8A959C;border-radius:999px">One floor of gear</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;align-items:center">
+        <div style="position:relative;width:min(400px,100%);aspect-ratio:1/1;border-radius:50%;background:#16191D;display:grid;place-items:center;box-shadow:0 0 0 1px #2A2F35, 0 40px 80px -30px #000">
+          <div style="position:absolute;inset:6%;border-radius:50%;background:repeating-radial-gradient(circle at 50% 50%, #1C2025 0 2px, #14171B 2px 4px)"></div>
+          <div style="position:absolute;inset:6%;border-radius:50%;background:conic-gradient(from 200deg, transparent 0 60%, #FFFFFF14 72%, transparent 84%)"></div>
+          <div style="position:relative;width:46%;aspect-ratio:1/1;border-radius:50%;background:#E8452B;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4%;box-shadow:0 0 0 1px #0E1013">
+            <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 118,'wght' 800;font-size:clamp(20px,3.2vw,34px);line-height:.9;letter-spacing:-.02em;text-transform:uppercase;color:#140C09">Slip</div>
+            <div style="width:8%;aspect-ratio:1/1;border-radius:50%;background:#0E1013;box-shadow:0 0 0 3px #C8371F;flex:none"></div>
+            <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 118,'wght' 800;font-size:clamp(20px,3.2vw,34px);line-height:.9;letter-spacing:-.02em;text-transform:uppercase;color:#140C09">Mat</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ POSITIONING ============ -->
+  <section data-screen-label="02 Positioning" style="padding:72px clamp(24px,5vw,80px);border-bottom:1px solid #2A2F35">
+    <div style="max-width:1240px;margin:0 auto;display:grid;gap:40px">
+      <div style="display:flex;align-items:baseline;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#6B7A82"><span style="color:#E8452B">02</span><span>Positioning</span></div>
+      <p style="margin:0;max-width:900px;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 100,'wght' 600;font-size:clamp(26px,3.4vw,42px);line-height:1.14;letter-spacing:-.02em;color:#EFEBE1;text-wrap:pretty">Rekordbox tells you everything about a file. A record tells you nothing. Slipmat closes that gap without asking anyone to give up the vinyl.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:#2A2F35;border:1px solid #2A2F35">
+        <div style="background:#14171B;padding:28px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:12px">Promise</div>
+          <div style="font-size:16px;line-height:1.5;color:#D6D9DB">Digital knowledge, analog feel. The data you already trust, read off a physical record.</div>
+        </div>
+        <div style="background:#14171B;padding:28px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:12px">Audience</div>
+          <div style="font-size:16px;line-height:1.5;color:#D6D9DB">Bedroom DJs learning vinyl, club DJs adding a turntable, and diggers who want their crate catalogued.</div>
+        </div>
+        <div style="background:#14171B;padding:28px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:12px">Voice</div>
+          <div style="font-size:16px;line-height:1.5;color:#D6D9DB">Technical and precise. State the number, name the key, skip the hype. Instrument, not influencer.</div>
+        </div>
+        <div style="background:#14171B;padding:28px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:12px">Never</div>
+          <div style="font-size:16px;line-height:1.5;color:#D6D9DB">Neon gradients, glowing waveform wallpaper, "AI-powered" as a headline. The tool proves itself.</div>
+        </div>
+      </div>
+      <div style="border:1px solid #2A2F35;padding:32px;display:grid;gap:14px;background:#14171B">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82">Lines we use</div>
+        <div style="display:grid;gap:10px;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 108,'wght' 600;font-size:clamp(18px,2.2vw,26px);line-height:1.25;color:#EFEBE1">
+          <div>Read the record.</div>
+          <div style="color:#8A959C">Every record, its numbers.</div>
+          <div style="color:#8A959C">Know the key before the needle drops.</div>
+          <div style="color:#8A959C">Vinyl set, digital confidence.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LOGO ============ -->
+  <section data-screen-label="03 Logo" style="padding:72px clamp(24px,5vw,80px);border-bottom:1px solid #2A2F35">
+    <div style="max-width:1240px;margin:0 auto;display:grid;gap:40px">
+      <div style="display:flex;align-items:baseline;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#6B7A82"><span style="color:#E8452B">03</span><span>Logo &amp; lockups</span></div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px">
+        <div style="background:#EFEBE1;border:1px solid #2A2F35;padding:40px;display:grid;place-items:center;gap:22px;min-height:280px">
+          <div style="position:relative;width:150px;aspect-ratio:1/1;border-radius:50%;background:#14171B;display:grid;place-items:center">
+            <div style="position:absolute;inset:5%;border-radius:50%;background:repeating-radial-gradient(circle at 50% 50%, #22262B 0 2px, #14171B 2px 4.5px)"></div>
+            <div style="position:relative;width:48%;aspect-ratio:1/1;border-radius:50%;background:#E8452B;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4%">
+              <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 118,'wght' 800;font-size:22px;line-height:.88;letter-spacing:-.02em;text-transform:uppercase;color:#140C09">Slip</div>
+              <div style="width:9%;aspect-ratio:1/1;border-radius:50%;background:#EFEBE1;box-shadow:0 0 0 2.5px #C8371F;flex:none"></div>
+              <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 118,'wght' 800;font-size:22px;line-height:.88;letter-spacing:-.02em;text-transform:uppercase;color:#140C09">Mat</div>
+            </div>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Primary mark · the slipmat</div>
+        </div>
+
+        <div style="background:#14171B;border:1px solid #2A2F35;padding:40px;display:grid;place-items:center;gap:22px;min-height:280px">
+          <div style="display:flex;align-items:center;gap:18px">
+            <div style="position:relative;width:64px;aspect-ratio:1/1;border-radius:50%;background:#EFEBE1;display:grid;place-items:center">
+              <div style="position:absolute;inset:6%;border-radius:50%;background:repeating-radial-gradient(circle at 50% 50%, #D5CFC0 0 1.5px, #EFEBE1 1.5px 3.5px)"></div>
+              <div style="position:relative;width:46%;aspect-ratio:1/1;border-radius:50%;background:#E8452B"><div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:18%;aspect-ratio:1/1;border-radius:50%;background:#14171B"></div></div>
+            </div>
+            <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 116,'wght' 800;font-size:44px;line-height:.9;letter-spacing:-.03em;text-transform:uppercase;color:#EFEBE1">Slipmat</div>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Horizontal lockup · on ink</div>
+        </div>
+
+        <div style="background:#E8452B;border:1px solid #2A2F35;padding:40px;display:grid;place-items:center;gap:22px;min-height:280px">
+          <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 125,'wght' 800;font-size:clamp(34px,5vw,54px);line-height:.88;letter-spacing:-.035em;text-transform:uppercase;color:#140C09;text-align:center">Slipmat</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#5D2013">Wordmark only · knocked out</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px">
+        <div style="border:1px solid #2A2F35;background:#14171B;padding:28px;display:grid;gap:18px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82">Construction</div>
+          <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+            <div style="position:relative;width:120px;aspect-ratio:1/1;border-radius:50%;border:1px dashed #E8452B66;display:grid;place-items:center">
+              <div style="position:absolute;inset:12%;border-radius:50%;border:1px dashed #6B7A8266"></div>
+              <div style="position:absolute;inset:52%;border-radius:50%;border:1px dashed #6B7A8266"></div>
+              <div style="position:absolute;left:0;right:0;top:50%;height:1px;background:#6B7A8244"></div>
+              <div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:#6B7A8244"></div>
+            </div>
+            <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.7;color:#B9BEC2">
+              <li>Disc diameter = 12 units. Label = 5.75 units, centred.</li>
+              <li>Spindle hole = 1 unit, always visible.</li>
+              <li>Clear space on all sides = 1.5 units (label radius ÷ 2).</li>
+              <li>Minimum size: 24px digital, 10mm print — drop the grooves below 32px.</li>
+            </ul>
+          </div>
+        </div>
+        <div style="border:1px solid #2A2F35;background:#14171B;padding:28px;display:grid;gap:18px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82">Don't</div>
+          <ul style="margin:0;padding-left:18px;font-size:14px;line-height:1.8;color:#B9BEC2">
+            <li>Don't rotate the wordmark inside the label — it stays horizontal even when the disc spins.</li>
+            <li>Don't recolour the label anything but Signal Red, ink or paper.</li>
+            <li>Don't add a glow, bevel or motion blur to the disc.</li>
+            <li>Don't place the mark over a photo without the ink scrim.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COLOR ============ -->
+  <section data-screen-label="04 Color" style="padding:72px clamp(24px,5vw,80px);border-bottom:1px solid #2A2F35">
+    <div style="max-width:1240px;margin:0 auto;display:grid;gap:36px">
+      <div style="display:flex;align-items:baseline;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#6B7A82"><span style="color:#E8452B">04</span><span>Colour</span></div>
+      <p style="margin:0;max-width:640px;font-size:16px;line-height:1.6;color:#8A959C">Two grounds — Deck Ink for the app and stage, Sleeve Paper for print and packaging. Signal Red is the only colour that ever means "act". Cue Amber and Groove Teal are reserved for data: tempo and key.</p>
+      <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:#2A2F35;border:1px solid #2A2F35">
+        <div style="background:#E8452B;padding:24px;min-height:180px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;color:#140C09">
+          <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 100,'wght' 800;font-size:19px;text-transform:uppercase;letter-spacing:-.01em">Signal Red</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px">#E8452B</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.7">Primary · action</div>
+        </div>
+        <div style="background:#E0A32B;padding:24px;min-height:180px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;color:#241905">
+          <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 100,'wght' 800;font-size:19px;text-transform:uppercase;letter-spacing:-.01em">Cue Amber</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px">#E0A32B</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.7">Data · tempo</div>
+        </div>
+        <div style="background:#3E8C7E;padding:24px;min-height:180px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;color:#EFEBE1">
+          <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 100,'wght' 800;font-size:19px;text-transform:uppercase;letter-spacing:-.01em">Groove Teal</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px">#3E8C7E</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;opacity:.7">Data · key</div>
+        </div>
+        <div style="background:#14171B;padding:24px;min-height:180px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;color:#EFEBE1">
+          <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 100,'wght' 800;font-size:19px;text-transform:uppercase;letter-spacing:-.01em">Deck Ink</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px">#14171B</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#6B7A82">Ground · dark</div>
+        </div>
+        <div style="background:#EFEBE1;padding:24px;min-height:180px;display:flex;flex-direction:column;justify-content:flex-end;gap:6px;color:#14171B">
+          <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 100,'wght' 800;font-size:19px;text-transform:uppercase;letter-spacing:-.01em">Sleeve Paper</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12px">#EFEBE1</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#6B7A82">Ground · light</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1px;background:#2A2F35;border:1px solid #2A2F35">
+        <div style="background:#0E1013;padding:16px 18px;display:grid;gap:4px"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#EFEBE1">#0E1013</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82;letter-spacing:.12em;text-transform:uppercase">Ink 950</div></div>
+        <div style="background:#22262B;padding:16px 18px;display:grid;gap:4px"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#EFEBE1">#22262B</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82;letter-spacing:.12em;text-transform:uppercase">Ink 800 · lines</div></div>
+        <div style="background:#6B7A82;padding:16px 18px;display:grid;gap:4px"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#0E1013">#6B7A82</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#14171B;letter-spacing:.12em;text-transform:uppercase">Slate · muted</div></div>
+        <div style="background:#D5CFC0;padding:16px 18px;display:grid;gap:4px"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#14171B">#D5CFC0</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#5C6A72;letter-spacing:.12em;text-transform:uppercase">Paper 300</div></div>
+        <div style="background:#C8371F;padding:16px 18px;display:grid;gap:4px"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#EFEBE1">#C8371F</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#F3C9C0;letter-spacing:.12em;text-transform:uppercase">Red 600 · press</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TYPE ============ -->
+  <section data-screen-label="05 Type" style="padding:72px clamp(24px,5vw,80px);border-bottom:1px solid #2A2F35">
+    <div style="max-width:1240px;margin:0 auto;display:grid;gap:36px">
+      <div style="display:flex;align-items:baseline;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#6B7A82"><span style="color:#E8452B">05</span><span>Typography</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px">
+        <div style="border:1px solid #2A2F35;background:#14171B;padding:32px;display:grid;gap:16px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#E8452B">Display · Archivo Expanded 800</div>
+          <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 125,'wght' 800;font-size:clamp(40px,6vw,76px);line-height:.9;letter-spacing:-.035em;text-transform:uppercase;color:#EFEBE1">128 BPM</div>
+          <div style="font-size:14px;line-height:1.6;color:#8A959C">ALL CAPS, tracking −3.5%, line-height 0.90. Headlines and readouts only. Numbers set with tabular figures so the BPM doesn't jump.</div>
+        </div>
+        <div style="border:1px solid #2A2F35;background:#14171B;padding:32px;display:grid;gap:16px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#E0A32B">Text · IBM Plex Sans</div>
+          <div style="font-size:20px;line-height:1.55;color:#EFEBE1">Slipmat reads the label, the runout groove and the pressing details, then matches the pressing against its catalogue to return tempo and key.</div>
+          <div style="font-size:14px;line-height:1.6;color:#8A959C">Sentence case, 400/500/600. Body 16–20px, line-height 1.55, measure capped at 68 characters.</div>
+        </div>
+        <div style="border:1px solid #2A2F35;background:#14171B;padding:32px;display:grid;gap:16px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#3E8C7E">Spec · IBM Plex Mono</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:16px;line-height:1.7;color:#EFEBE1">A2 · 8A / F MIN · 121.98<br>SIDE B · 33⅓ RPM · 1997</div>
+          <div style="font-size:14px;line-height:1.6;color:#8A959C">Labels, track IDs, Camelot codes, timestamps. Uppercase, tracking 0.14em at small sizes.</div>
+        </div>
+      </div>
+      <div style="border:1px solid #2A2F35;background:#14171B;padding:32px;display:grid;gap:20px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82">Scale</div>
+        <div style="display:grid;gap:14px">
+          <div style="display:flex;align-items:baseline;gap:20px;border-bottom:1px solid #22262B;padding-bottom:12px"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6B7A82;width:88px;flex:none">D1 / 76</span><span style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 125,'wght' 800;font-size:52px;line-height:.9;text-transform:uppercase;letter-spacing:-.035em">Read the record</span></div>
+          <div style="display:flex;align-items:baseline;gap:20px;border-bottom:1px solid #22262B;padding-bottom:12px"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6B7A82;width:88px;flex:none">D2 / 34</span><span style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 112,'wght' 800;font-size:30px;line-height:1;text-transform:uppercase;letter-spacing:-.03em">Scan a sleeve</span></div>
+          <div style="display:flex;align-items:baseline;gap:20px;border-bottom:1px solid #22262B;padding-bottom:12px"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6B7A82;width:88px;flex:none">T1 / 18</span><span style="font-size:18px;color:#D6D9DB">Body copy for onboarding and marketing</span></div>
+          <div style="display:flex;align-items:baseline;gap:20px"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6B7A82;width:88px;flex:none">L1 / 11</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#8A959C">Eyebrow &amp; metadata label</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <section data-screen-label="06 App" style="padding:72px clamp(24px,5vw,80px);border-bottom:1px solid #2A2F35">
+    <div style="max-width:1240px;margin:0 auto;display:grid;gap:40px">
+      <div style="display:flex;align-items:baseline;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#6B7A82"><span style="color:#E8452B">06</span><span>Product · scan &amp; set builder</span></div>
+      <div style="display:flex;gap:40px;flex-wrap:wrap;justify-content:center">
+
+        <!-- Phone 1: result -->
+        <div style="display:grid;gap:14px;justify-items:center">
+          <div style="width:352px;height:720px;border-radius:40px;background:#0E1013;border:8px solid #22262B;padding:0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 70px -30px #000">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A959C"><span>21:47</span><span style="letter-spacing:.1em">◐ ▮▮▮</span></div>
+            <div style="padding:8px 24px 0;display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;align-items:center;gap:9px">
+                <div style="position:relative;width:22px;aspect-ratio:1/1;border-radius:50%;background:#EFEBE1"><div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44%;aspect-ratio:1/1;border-radius:50%;background:#E8452B"></div></div>
+                <span style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 116,'wght' 800;font-size:16px;text-transform:uppercase;letter-spacing:-.02em">Slipmat</span>
+              </div>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#3E8C7E">● Matched</span>
+            </div>
+            <div style="position:relative;margin:16px 24px 0;height:172px;border:1px solid #22262B;overflow:hidden;background:#14171B">
+              <div class="brand-placeholder">Drop a record label photo</div>
+              <div style="position:absolute;inset:0;pointer-events:none;border:1px solid #E8452B44"></div>
+              <div style="position:absolute;left:12px;top:12px;pointer-events:none;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:#EFEBE1;background:#0E1013CC;padding:4px 7px">Scan 04 · side A</div>
+            </div>
+            <div style="padding:20px 24px 0">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Blue Note · BST 84003 · 1963</div>
+              <div style="margin-top:8px;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 112,'wght' 800;font-size:26px;line-height:1;letter-spacing:-.03em;text-transform:uppercase;color:#EFEBE1">Moanin'</div>
+              <div style="margin-top:6px;font-size:14px;color:#8A959C">Art Blakey &amp; The Jazz Messengers · A1</div>
+            </div>
+            <div style="margin:20px 24px 0;display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#22262B;border:1px solid #22262B">
+              <div style="background:#14171B;padding:16px">
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#E0A32B">Tempo</div>
+                <div style="margin-top:6px;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 118,'wght' 800;font-size:38px;line-height:.9;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:#EFEBE1">121<span style="font-size:18px;color:#8A959C">.9</span></div>
+                <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82">BPM · ±0.4 drift</div>
+              </div>
+              <div style="background:#14171B;padding:16px">
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#3E8C7E">Key</div>
+                <div style="margin-top:6px;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 118,'wght' 800;font-size:38px;line-height:.9;letter-spacing:-.03em;color:#EFEBE1">F<span style="font-size:18px;color:#8A959C">min</span></div>
+                <div style="margin-top:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82">Camelot 4A</div>
+              </div>
+            </div>
+            <div style="margin:16px 24px 0;display:grid;gap:8px">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Mixes into</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em">
+                <span style="padding:5px 9px;border:1px solid #3E8C7E;color:#3E8C7E">4B · A♭MAJ</span>
+                <span style="padding:5px 9px;border:1px solid #3E8C7E;color:#3E8C7E">5A · CMIN</span>
+                <span style="padding:5px 9px;border:1px solid #22262B;color:#6B7A82">3A · B♭MIN</span>
+              </div>
+            </div>
+            <div style="margin-top:auto;padding:16px 24px 22px;display:grid;grid-template-columns:1fr auto;gap:10px">
+              <button class="brand-btn solid-red" style="border:none;background:#E8452B;color:#140C09;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 108,'wght' 800;font-size:14px;letter-spacing:.02em;text-transform:uppercase;padding:15px;border-radius:999px;cursor:pointer">Add to set</button>
+              <button class="brand-btn ghost" style="border:1px solid #22262B;background:transparent;color:#EFEBE1;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:15px 18px;border-radius:999px;cursor:pointer">Rescan</button>
+            </div>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Scan result</div>
+        </div>
+
+        <!-- Phone 2: set builder -->
+        <div style="display:grid;gap:14px;justify-items:center">
+          <div style="width:352px;height:720px;border-radius:40px;background:#0E1013;border:8px solid #22262B;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 70px -30px #000">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px 8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#8A959C"><span>21:52</span><span style="letter-spacing:.1em">◐ ▮▮▮</span></div>
+            <div style="padding:8px 24px 18px;border-bottom:1px solid #22262B">
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Set · Friday, Hornstulls Bar</div>
+              <div style="margin-top:8px;display:flex;align-items:flex-end;justify-content:space-between">
+                <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 112,'wght' 800;font-size:26px;line-height:1;letter-spacing:-.03em;text-transform:uppercase">Warm-up B</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#8A959C;text-align:right">6 records<br>48 min</div>
+              </div>
+              <div style="margin-top:14px;height:4px;background:#22262B;display:flex">
+                <div style="width:34%;background:#3E8C7E"></div><div style="width:28%;background:#E0A32B"></div><div style="width:22%;background:#E8452B"></div>
+              </div>
+              <div style="margin-top:6px;display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#6B7A82"><span>112</span><span>Energy curve</span><span>128</span></div>
+            </div>
+            <div style="flex:1;overflow:hidden;display:grid;gap:1px;background:#22262B;align-content:start">
+              <div style="background:#14171B;padding:13px 24px;display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6B7A82">01</span>
+                <div><div style="font-size:14px;font-weight:500;color:#EFEBE1">Aquarius</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82">Boards Of Canada · B2</div></div>
+                <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px"><div style="color:#E0A32B">112.0</div><div style="color:#3E8C7E">7A</div></div>
+              </div>
+              <div style="background:#14171B;padding:13px 24px;display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6B7A82">02</span>
+                <div><div style="font-size:14px;font-weight:500;color:#EFEBE1">Vibrate</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82">Rufus Wainwright · A3</div></div>
+                <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px"><div style="color:#E0A32B">114.5</div><div style="color:#3E8C7E">7B</div></div>
+              </div>
+              <div style="background:#1A1E23;padding:13px 24px;display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center;border-left:2px solid #E8452B">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#E8452B">03</span>
+                <div><div style="font-size:14px;font-weight:500;color:#EFEBE1">Moanin'</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82">Art Blakey · A1 · just scanned</div></div>
+                <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px"><div style="color:#E0A32B">121.9</div><div style="color:#3E8C7E">4A</div></div>
+              </div>
+              <div style="background:#14171B;padding:11px 24px;display:flex;gap:10px;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#E0A32B"><span style="flex:none">⚠ +6.4%</span><span style="color:#6B7A82;letter-spacing:.1em;text-transform:none;font-size:10px">Pitch nudge needed — or drop 5A next</span></div>
+              <div style="background:#14171B;padding:13px 24px;display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6B7A82">04</span>
+                <div><div style="font-size:14px;font-weight:500;color:#EFEBE1">Ivory Coast</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82">Tony Allen · B1</div></div>
+                <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px"><div style="color:#E0A32B">123.0</div><div style="color:#3E8C7E">4B</div></div>
+              </div>
+              <div style="background:#14171B;padding:13px 24px;display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6B7A82">05</span>
+                <div><div style="font-size:14px;font-weight:500;color:#EFEBE1">Loose Ends</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82">Hagen Rether · A2</div></div>
+                <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px"><div style="color:#E0A32B">125.2</div><div style="color:#3E8C7E">5B</div></div>
+              </div>
+              <div style="background:#14171B;padding:13px 24px;display:grid;grid-template-columns:18px 1fr auto;gap:12px;align-items:center;opacity:.55">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#6B7A82">06</span>
+                <div><div style="font-size:14px;font-weight:500;color:#EFEBE1">Sun Is Shining</div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#6B7A82">Unmatched · tap to confirm</div></div>
+                <div style="text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px"><div style="color:#6B7A82">—</div><div style="color:#6B7A82">—</div></div>
+              </div>
+            </div>
+            <div style="padding:14px 24px 22px;border-top:1px solid #22262B;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <button class="brand-btn ghost" style="border:1px solid #22262B;background:transparent;color:#EFEBE1;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:14px;border-radius:999px;cursor:pointer">Reorder</button>
+              <button class="brand-btn solid-paper" style="border:none;background:#EFEBE1;color:#14171B;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 108,'wght' 800;font-size:13px;letter-spacing:.02em;text-transform:uppercase;padding:14px;border-radius:999px;cursor:pointer">Scan next</button>
+            </div>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Set builder</div>
+        </div>
+      </div>
+      <div style="border:1px solid #2A2F35;background:#14171B;padding:28px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:24px">
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:8px">Data colour rule</div><div style="font-size:14px;line-height:1.6;color:#B9BEC2">Amber is always tempo. Teal is always key. Red is always the thing you tap. No exceptions — DJs read these in the dark.</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:8px">Confidence</div><div style="font-size:14px;line-height:1.6;color:#B9BEC2">Every reading shows its uncertainty (±drift, "unmatched"). The brand never fakes certainty it doesn't have.</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:8px">Touch</div><div style="font-size:14px;line-height:1.6;color:#B9BEC2">48px minimum targets, pill buttons, one primary action per screen. Usable one-handed while the other hand is on the platter.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LANDING ============ -->
+  <section data-screen-label="07 Landing" style="padding:72px clamp(24px,5vw,80px);border-bottom:1px solid #2A2F35">
+    <div style="max-width:1240px;margin:0 auto;display:grid;gap:32px">
+      <div style="display:flex;align-items:baseline;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#6B7A82"><span style="color:#E8452B">07</span><span>Landing hero</span></div>
+      <div style="border:1px solid #2A2F35;overflow:hidden;background:#EFEBE1;color:#14171B">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 32px;border-bottom:2px solid #14171B">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="position:relative;width:26px;aspect-ratio:1/1;border-radius:50%;background:#14171B"><div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46%;aspect-ratio:1/1;border-radius:50%;background:#E8452B"></div></div>
+            <span style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 116,'wght' 800;font-size:19px;text-transform:uppercase;letter-spacing:-.02em">Slipmat</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:28px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase">
+            <span style="color:#5C6A72">How it reads</span><span style="color:#5C6A72">Crate</span><span style="color:#5C6A72">Pricing</span>
+            <span style="background:#E8452B;color:#140C09;padding:10px 18px;border-radius:999px;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 108,'wght' 800;font-size:12px;letter-spacing:.04em">Get the beta</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr)">
+          <div style="padding:64px 40px 64px 32px;display:grid;gap:26px;align-content:center">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#5C6A72">Vinyl · tempo · key · sequence</div>
+            <h2 style="margin:0;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 122,'wght' 800;font-size:clamp(44px,6vw,84px);line-height:.88;letter-spacing:-.038em;text-transform:uppercase">Read the record</h2>
+            <p style="margin:0;max-width:440px;font-size:18px;line-height:1.55;color:#3B454C;text-wrap:pretty">Photograph the label. Slipmat identifies the pressing and hands back BPM, key and the records in your crate that mix into it. Your first vinyl set, without guessing.</p>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+              <span style="background:#14171B;color:#EFEBE1;padding:16px 26px;border-radius:999px;font-family:Archivo,sans-serif;font-variation-settings:'wdth' 108,'wght' 800;font-size:14px;letter-spacing:.03em;text-transform:uppercase">Scan a record</span>
+              <span style="border:2px solid #14171B;padding:14px 24px;border-radius:999px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase">See a sample crate</span>
+            </div>
+            <div style="display:flex;gap:26px;padding-top:8px;border-top:2px solid #14171B;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#5C6A72">
+              <span>2.1M pressings</span><span>iOS · Android</span><span>Works offline</span>
+            </div>
+          </div>
+          <div style="position:relative;min-height:460px;background:#14171B">
+            <div class="brand-placeholder">Drop a turntable / crate photo</div>
+            <div style="position:absolute;left:24px;bottom:24px;pointer-events:none;background:#0E1013EE;border-left:2px solid #E8452B;padding:14px 18px;display:grid;gap:4px">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Reading</span>
+              <span style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 118,'wght' 800;font-size:26px;line-height:1;letter-spacing:-.03em;color:#EFEBE1;font-variant-numeric:tabular-nums">121.9 <span style="color:#E0A32B;font-size:14px">BPM</span> · <span style="color:#3E8C7E;font-size:20px">4A</span></span>
+            </div>
+          </div>
+        </div>
+        <div style="border-top:2px solid #14171B;background:#14171B;overflow:hidden;padding:12px 0">
+          <div style="display:flex;gap:32px;width:max-content;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#EFEBE1;animation:ticker 26s linear infinite">
+            <span>Afrobeats ✺ 118.0 ✺ 11A</span><span>House ✺ 124.0 ✺ 8B</span><span>Dub ✺ 76.5 ✺ 3A</span><span>Amapiano ✺ 112.0 ✺ 6A</span><span>Disco ✺ 120.4 ✺ 9B</span><span>Jazz ✺ 121.9 ✺ 4A</span>
+            <span>Afrobeats ✺ 118.0 ✺ 11A</span><span>House ✺ 124.0 ✺ 8B</span><span>Dub ✺ 76.5 ✺ 3A</span><span>Amapiano ✺ 112.0 ✺ 6A</span><span>Disco ✺ 120.4 ✺ 9B</span><span>Jazz ✺ 121.9 ✺ 4A</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SOCIAL + MERCH ============ -->
+  <section data-screen-label="08 Social &amp; merch" style="padding:72px clamp(24px,5vw,80px)">
+    <div style="max-width:1240px;margin:0 auto;display:grid;gap:40px">
+      <div style="display:flex;align-items:baseline;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#6B7A82"><span style="color:#E8452B">08</span><span>Social &amp; merch</span></div>
+      <div style="display:flex;gap:36px;flex-wrap:wrap">
+
+        <div style="display:grid;gap:14px">
+          <div style="width:440px;height:440px;background:#EFEBE1;border:1px solid #2A2F35;display:grid;grid-template-rows:auto 1fr auto;color:#14171B;position:relative;overflow:hidden">
+            <div style="padding:26px 26px 0;display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="position:relative;width:22px;aspect-ratio:1/1;border-radius:50%;background:#14171B"><div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46%;aspect-ratio:1/1;border-radius:50%;background:#E8452B"></div></div>
+                <span style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 116,'wght' 800;font-size:16px;text-transform:uppercase;letter-spacing:-.02em">Slipmat</span>
+              </div>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#5C6A72">Beta · open</span>
+            </div>
+            <div style="padding:22px 26px;display:grid;align-content:center;gap:18px">
+              <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 124,'wght' 800;font-size:64px;line-height:.86;letter-spacing:-.04em;text-transform:uppercase">Every<br>record,<br><span style="color:#E8452B">its numbers</span></div>
+              <div style="display:flex;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase">
+                <span style="border:1.5px solid #14171B;padding:6px 10px">Photo in</span>
+                <span style="border:1.5px solid #E0A32B;color:#8A6412;padding:6px 10px">BPM out</span>
+                <span style="border:1.5px solid #3E8C7E;color:#2A6155;padding:6px 10px">Key out</span>
+              </div>
+            </div>
+            <div style="background:#14171B;padding:14px 26px;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#EFEBE1">slipmat.app</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#E8452B">Read the record →</span>
+            </div>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Social post · 1080²</div>
+        </div>
+
+        <div style="display:grid;gap:14px;flex:1;min-width:320px">
+          <div style="position:relative;background:#14171B;border:1px solid #2A2F35;min-height:440px;display:grid;place-items:center;padding:32px;overflow:hidden">
+            <div style="position:absolute;inset:0;background-image:radial-gradient(#FFFFFF10 1px, transparent 1.1px);background-size:5px 5px"></div>
+            <div style="position:relative;width:min(340px,100%);aspect-ratio:1/1;border-radius:50%;background:#E8452B;display:grid;place-items:center;box-shadow:0 30px 60px -20px #000">
+              <div style="position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 210deg, transparent 0 62%, #FFFFFF22 74%, transparent 86%)"></div>
+              <div style="position:absolute;inset:8%;border-radius:50%;border:2px solid #140C0933"></div>
+              <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:14px">
+                <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 125,'wght' 800;font-size:clamp(38px,7vw,58px);line-height:.84;letter-spacing:-.04em;text-transform:uppercase;color:#140C09">Slip</div>
+                <div style="width:26px;height:26px;border-radius:50%;background:#14171B;box-shadow:0 0 0 4px #C8371F;flex:none"></div>
+                <div style="font-family:Archivo,sans-serif;font-variation-settings:'wdth' 125,'wght' 800;font-size:clamp(38px,7vw,58px);line-height:.84;letter-spacing:-.04em;text-transform:uppercase;color:#140C09">Mat</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:#5D2013">Read the record</div>
+              </div>
+            </div>
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#6B7A82">Merch · 12″ felt slipmat, one-colour screen print</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:#2A2F35;border:1px solid #2A2F35">
+        <div style="background:#14171B;padding:24px"><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:8px">Print spec</div><div style="font-size:14px;line-height:1.6;color:#B9BEC2">Slipmat: 12″ / 305mm, red felt, ink knockout in Sleeve Paper. Spindle hole reinforced, 7mm.</div></div>
+        <div style="background:#14171B;padding:24px"><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:8px">Sticker</div><div style="font-size:14px;line-height:1.6;color:#B9BEC2">Die-cut circle, 55mm, primary mark only. Goes on flight cases and record boxes.</div></div>
+        <div style="background:#14171B;padding:24px"><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#6B7A82;margin-bottom:8px">Social system</div><div style="font-size:14px;line-height:1.6;color:#B9BEC2">One headline, one data readout, one URL bar. Paper ground for announcements, ink ground for scan results.</div></div>
+      </div>
+    </div>
+  </section>
+</div>
+</body>
+</html>
