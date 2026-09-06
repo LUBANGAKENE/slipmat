@@ -117,6 +117,19 @@
     font-size:17px;line-height:1;cursor:pointer;padding:6px 4px;border-radius:6px}
   .trk-menu:hover{color:var(--ink)}
 
+  /* Sits between the bubbles and the list - BPM/Key stay clickable the way
+     the plain table's headers already were, just as chips instead of <th>
+     since this view has no table to hang them on. */
+  .track-sortbar{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+  .track-sortbar .label{font-family:var(--font-mono);font-size:10px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--line2);margin-right:2px}
+  .sort-chip{flex:none;background:transparent;border:1px solid var(--line2);
+    color:var(--dim);border-radius:999px;padding:5px 12px;font-size:11.5px;
+    font-family:var(--font-mono);letter-spacing:.04em;cursor:pointer}
+  .sort-chip:hover{color:var(--ink);border-color:var(--dim)}
+  .sort-chip.active{color:var(--ink);border-color:var(--red)}
+  .sort-chip .arrow{color:var(--red);margin-left:4px}
+
   /* Bottom sheet, the way the reference does it - slides up from the edge
      of the screen rather than floating mid-page, which is what makes it
      reachable one-handed on a phone. */
@@ -401,6 +414,11 @@
            once loadPlaylists() resolves - avoids a flash of an empty rail
            before playlist data has loaded. -->
       <div class="track-bubbles" id="track-bubbles" style="display:none"></div>
+      <!-- Same hidden-until-rendered treatment as the bubbles rail above -
+           an empty library never calls renderTrackSortbar() at all, so
+           this stays out of the way rather than leaving a blank flex gap
+           above "No saved albums yet." -->
+      <div class="track-sortbar" id="track-sortbar" style="display:none"></div>
       <div id="track-list"></div>
     </div>
     <div class="pl-layout" id="library-playlists" style="display:none">
@@ -902,10 +920,13 @@ function sortTracks(rows){
 // handler re-renders through it.
 let tracksRenderTarget = '#pl-main';
 
+// One sort state shared by both places BPM/Key show up - the plain table
+// and the Tracks page - so picking BPM on one and switching to the other
+// keeps the same order instead of resetting it.
 function setTracksSort(col){
   if (tracksSort.col === col) tracksSort.dir *= -1;
   else tracksSort = { col, dir: 1 };
-  renderTracksTable();
+  if (libView === 'tracks') renderTracksPage(); else renderTracksTable();
 }
 
 // Shared by the flat "All Tracks" table (sortable) and a single playlist's
@@ -1003,20 +1024,38 @@ function trackRowHtml(t){
     </div>`;
 }
 
+function renderTrackSortbar(){
+  const chip = (label, col) => `
+    <button class="sort-chip${tracksSort.col === col ? ' active' : ''}" data-sort="${col}">
+      ${esc(label)}${tracksSort.col === col
+        ? `<span class="arrow">${tracksSort.dir === 1 ? '&#9650;' : '&#9660;'}</span>` : ''}
+    </button>`;
+  const el = $('#track-sortbar');
+  el.style.display = 'flex';
+  el.innerHTML = `<span class="label">Sort</span>${chip('BPM', 'bpm')}${chip('Key', 'key')}`;
+}
+
 async function renderTracksPage(){
   renderTrackBubbles();
+  renderTrackSortbar();
 
   let rows = flattenTracks(libraryAlbums);
   if (trackFilterPlaylist){
     const members = await membersOf(trackFilterPlaylist);
     rows = rows.filter(t => members.has(t.id));
   }
+  rows = sortTracks(rows);
 
   $('#track-list').innerHTML = rows.length
     ? rows.map(trackRowHtml).join('')
     : `<div class="empty">${trackFilterPlaylist
          ? 'Nothing in this playlist yet.' : 'No tracks saved.'}</div>`;
 }
+
+$('#track-sortbar').addEventListener('click', e => {
+  const chip = e.target.closest('.sort-chip');
+  if (chip) setTracksSort(chip.dataset.sort);
+});
 
 $('#track-bubbles').addEventListener('click', e => {
   const addBtn = e.target.closest('#track-bubble-add');

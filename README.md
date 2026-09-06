@@ -137,14 +137,19 @@ The Library tab is Spotify's shape on top of Rekordbox's data. **Albums** and
 most recently active first; clicking one filters Albums down to theirs, with
 a chip to clear it. **Tracks** is Spotify's Liked Songs: artwork, title over
 artist, and a row of playlist bubbles across the top — tap one to filter down
-to that playlist, tap it again to clear. BPM and Camelot key stay on every
-row, because those two numbers are the reason this app exists; the layout
-adapts around them rather than copying the reference exactly. The `⋯` on a
-row opens a bottom sheet with **Add to playlist**, which is the touch-
-reachable path to what drag-and-drop does with a mouse — you can also drag a
-row straight onto a bubble. Clicking any album tile drops into the full
-Rekordbox-style detail instead: every track with its BPM and Camelot key,
-grouped back under its album, same as the scan results table.
+to that playlist, tap it again to clear, or tap the dashed **+** at the end
+to create a new one right there without leaving the page. BPM and Camelot
+key stay on every row, because those two numbers are the reason this app
+exists; the layout adapts around them rather than copying the reference
+exactly, and a **Sort** bar underneath lets you order the list by either —
+click again to reverse, same rule as the table below (key sorts around the
+Camelot wheel, not alphabetically), and the choice is shared with that
+table, so picking one here carries over there. The `⋯` on a row opens a
+bottom sheet with **Add to playlist**, which is the touch-reachable path to
+what drag-and-drop does with a mouse — you can also drag a row straight onto
+a bubble. Clicking any album tile drops into the full Rekordbox-style detail
+instead: every track with its BPM and Camelot key, grouped back under its
+album, same as the scan results table.
 
 **Playlists** is Rekordbox's own tree: **All Tracks** first — the sortable
 flat table, where clicking the BPM or Key header sorts by it and clicking
