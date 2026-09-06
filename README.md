@@ -123,10 +123,14 @@ track that only lands when the hop is working. Restart `app.py` afterwards —
 4. Restart `app.py`.
 
 Sign-in is email and password, handled entirely by Supabase Auth — this repo
-never sees a password. A **Save to library** button appears under a scanned
-record once signed in; a **Library** tab lists everything saved, with a delete
-on each entry. The browser talks to Supabase directly for all of this — Flask
-never touches it, so `/api/scan` and `/api/bpm` are unchanged either way.
+never sees a password. Once signed in, the header shows a circular initial
+avatar in place of the sign-in form — click it for the **Profile** page
+(email, Sign out); it isn't one of the Scan/Library tabs, so neither shows
+active while it's open, and clicking either tab is what takes you back out.
+A **Save to library** button appears under a scanned record; a **Library**
+tab lists everything saved, with a delete on each entry. The browser talks to
+Supabase directly for all of this — Flask never touches it, so `/api/scan`
+and `/api/bpm` are unchanged either way.
 
 The Library tab is Spotify's shape on top of Rekordbox's data. **Albums** and
 **Artists** browse cover-art grids — Artists is grouped from the same rows,

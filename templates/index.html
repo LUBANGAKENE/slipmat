@@ -45,6 +45,13 @@
   #auth input::placeholder{color:var(--dim)}
   #auth .who{color:var(--dim);font-family:var(--font-mono);font-size:12px}
   #auth .err{color:var(--bad);font-size:12px;max-width:220px}
+  .profile-btn{width:32px;height:32px;flex:none;border-radius:50%;
+    background:var(--line2);border:1px solid var(--line2);color:var(--ink);
+    font-family:var(--font-display);font-variation-settings:'wdth' 108,'wght' 800;
+    font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .profile-btn:hover{border-color:var(--red)}
+  .profile-label{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--dim)}
 
   .tabs{display:none;gap:6px;margin-bottom:16px}
   .tab{background:transparent;border:1px solid var(--line2);color:var(--dim);
@@ -315,6 +322,15 @@
       <div class="empty">No saved albums yet.</div>
     </div>
   </section>
+
+  <section id="profile-view" style="display:none">
+    <div class="lib-header"><h2>Profile</h2></div>
+    <div class="panel" style="max-width:420px">
+      <div class="profile-label">Signed in as</div>
+      <div id="profile-email" style="margin-top:5px;font-size:15px"></div>
+      <button class="ghost" id="profileSignOut" style="margin-top:18px">Sign out</button>
+    </div>
+  </section>
 </div>
 
 <div class="pl-ctxmenu" id="pl-ctxmenu">
@@ -508,7 +524,12 @@ function showTab(name){
   $$('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   $('#scan-view').style.display = name === 'scan' ? '' : 'none';
   $('#library-view').style.display = name === 'library' ? '' : 'none';
+  // Profile isn't one of the Scan/Library tabs - reached via the avatar
+  // button instead - so neither .tab button shows active while it's open.
+  // The tabs stay visible and clickable, which is the way back out of it.
+  $('#profile-view').style.display = name === 'profile' ? '' : 'none';
   if (name === 'library') loadLibrary();
+  if (name === 'profile') $('#profile-email').textContent = currentUser?.email || '';
 }
 $('#tabs').addEventListener('click', e => {
   if (e.target.dataset.tab) showTab(e.target.dataset.tab);
@@ -578,9 +599,9 @@ function renderAuth(){
   if (!supabaseClient){ el.innerHTML = ''; return; }
 
   if (currentUser){
-    el.innerHTML = `
-      <span class="who">${esc(currentUser.email)}</span>
-      <button class="ghost" id="signOut">Sign out</button>`;
+    const initial = esc((currentUser.email || '?').trim()[0]?.toUpperCase() || '?');
+    el.innerHTML = `<button class="profile-btn" id="profileBtn"
+      title="${esc(currentUser.email)}" aria-label="Profile">${initial}</button>`;
     $('#tabs').style.display = 'flex';
   } else {
     el.innerHTML = `
@@ -600,9 +621,8 @@ function renderAuth(){
 // handlers that would just be discarded on the next innerHTML replace.
 $('#auth').addEventListener('click', async e => {
   const id = e.target.id;
-  if (id !== 'signIn' && id !== 'signUp' && id !== 'signOut') return;
-
-  if (id === 'signOut'){ await supabaseClient.auth.signOut(); return; }
+  if (id === 'profileBtn'){ showTab('profile'); return; }
+  if (id !== 'signIn' && id !== 'signUp') return;
 
   const email = $('#authEmail').value.trim();
   const password = $('#authPass').value;
@@ -615,6 +635,10 @@ $('#auth').addEventListener('click', async e => {
   if (error) err.textContent = error.message;
   else if (id === 'signUp') err.textContent = 'Check your email to confirm, then sign in.';
 });
+
+// #profile-view is static markup, not rebuilt on every render like #auth is,
+// so this can just be wired once rather than delegated.
+$('#profileSignOut').onclick = () => supabaseClient.auth.signOut();
 
 if (supabaseClient){
   supabaseClient.auth.getSession().then(({ data }) => {
