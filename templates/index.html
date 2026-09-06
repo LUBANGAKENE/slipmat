@@ -86,6 +86,10 @@
   .bubble.drag-over{outline:2px solid var(--red);outline-offset:2px;
     background:#E8452B22;border-color:var(--red)}
   .bubble.drag-added{background:var(--line2);transition:background .3s}
+  .bubble-add{width:34px;height:34px;padding:0;display:flex;align-items:center;
+    justify-content:center;font-size:19px;line-height:1;border-radius:50%;
+    border-style:dashed;color:var(--dim)}
+  .bubble-add:hover{border-color:var(--dim);color:var(--ink)}
 
   #track-list{background:var(--panel);border:1px solid var(--line);border-radius:10px;
     overflow:hidden}
@@ -393,9 +397,9 @@
     </nav>
     <div class="cover-grid" id="library-grid"></div>
     <div id="library-tracks" style="display:none">
-      <!-- Hidden until renderTrackBubbles decides there is something to
-           show: an empty flex rail still costs its own margin, which reads
-           as dead space above an empty library. -->
+      <!-- Hidden until the first renderTrackBubbles() call, which happens
+           once loadPlaylists() resolves - avoids a flash of an empty rail
+           before playlist data has loaded. -->
       <div class="track-bubbles" id="track-bubbles" style="display:none"></div>
       <div id="track-list"></div>
     </div>
@@ -960,12 +964,14 @@ function playlistsOnly(){
 function renderTrackBubbles(){
   const lists = playlistsOnly();
   const el = $('#track-bubbles');
-  // No playlists yet means no bubbles at all rather than an empty rail -
-  // there's nothing to filter by and nothing to drop onto.
-  el.style.display = lists.length ? 'flex' : 'none';
+  // Always shown now, even with zero playlists - the trailing + button is
+  // how you make the first one, so there's always at least one bubble.
+  el.style.display = 'flex';
   el.innerHTML = lists.map(p =>
     `<button class="bubble${p.id === trackFilterPlaylist ? ' active' : ''}"
-       data-id="${p.id}">${esc(p.name)}</button>`).join('');
+       data-id="${p.id}">${esc(p.name)}</button>`).join('')
+    + `<button class="bubble bubble-add" id="track-bubble-add"
+         aria-label="New playlist" title="New playlist">+</button>`;
 }
 
 async function membersOf(playlistId){
@@ -1013,7 +1019,17 @@ async function renderTracksPage(){
 }
 
 $('#track-bubbles').addEventListener('click', e => {
-  const bubble = e.target.closest('.bubble');
+  const addBtn = e.target.closest('#track-bubble-add');
+  if (addBtn){
+    // Stop this click reaching the document-level listener that closes the
+    // panel on any click outside it - without this the panel we're about
+    // to open would see its own opening click as an "outside" click and
+    // close itself on the same event.
+    e.stopPropagation();
+    openCreatePlaylistPanel(addBtn);
+    return;
+  }
+  const bubble = e.target.closest('.bubble[data-id]');
   if (!bubble) return;
   // Tapping the active one clears the filter, so a bubble is its own toggle.
   trackFilterPlaylist = trackFilterPlaylist === bubble.dataset.id ? null : bubble.dataset.id;
@@ -1033,7 +1049,9 @@ $('#track-list').addEventListener('dragend', () => {
 });
 
 $('#track-bubbles').addEventListener('dragover', e => {
-  const bubble = e.target.closest('.bubble');
+  // [data-id] excludes the trailing + button - it creates playlists, it
+  // isn't one, so it's not a valid drop target.
+  const bubble = e.target.closest('.bubble[data-id]');
   // Same clear-everything-then-mark approach as the tree: dragleave fires
   // when the pointer crosses onto a child node, not only on a real exit.
   $$('.bubble.drag-over').forEach(b => { if (b !== bubble) b.classList.remove('drag-over'); });
@@ -1048,7 +1066,7 @@ $('#track-bubbles').addEventListener('dragleave', e => {
   }
 });
 $('#track-bubbles').addEventListener('drop', async e => {
-  const bubble = e.target.closest('.bubble');
+  const bubble = e.target.closest('.bubble[data-id]');
   if (!bubble) return;
   e.preventDefault();
   bubble.classList.remove('drag-over');
@@ -1348,6 +1366,31 @@ $('#pl-tree').addEventListener('contextmenu', e => {
 document.addEventListener('click', e => {
   if (!e.target.closest('#pl-ctxmenu')) hideCtxMenu();
 });
+
+// The Tracks page's trailing + button opens the same panel, anchored under
+// the button instead of the pointer, and skips straight to the name field -
+// there's no "New Folder" choice here, since a folder can't appear as a
+// bubble or hold a track, so offering one from this button would create
+// something this page has no way to show.
+function openCreatePlaylistPanel(anchorEl){
+  ctxParentId = null;
+  ctxKind = 'playlist';
+  $('#pl-ctx-choices').style.display = 'none';
+  $('#pl-ctx-name').style.display = 'block';
+  $('#pl-ctx-input').value = '';
+  $('#pl-ctx-input').placeholder = 'Playlist name';
+
+  const menu = $('#pl-ctxmenu');
+  menu.style.display = 'block';
+  const r = anchorEl.getBoundingClientRect();
+  const menuWidth = menu.offsetWidth;
+  // Anchored below-left of the button, clamped so it can't run off either
+  // edge on a narrow phone screen.
+  let left = Math.min(r.left, window.innerWidth - menuWidth - 8);
+  menu.style.left = Math.max(8, left) + 'px';
+  menu.style.top = (r.bottom + 6) + 'px';
+  $('#pl-ctx-input').focus();
+}
 
 $('#pl-ctx-choices').addEventListener('click', e => {
   const row = e.target.closest('.pl-ctx-row');
