@@ -139,9 +139,9 @@ a chip to clear it. **Tracks** is Rekordbox's Collection view — every track
 flattened out of its album into one sortable table; click the BPM or Key
 header to sort by it, click again to reverse. Key sorts around the Camelot
 wheel (`1A, 1B, 2A, 2B, …`), not alphabetically, so `10A` doesn't land ahead
-of `2A`. Clicking any album tile, or the **View as list** link, drops into the
-full Rekordbox-style detail instead: every track with its BPM and Camelot key,
-grouped back under its album, same as the scan results table.
+of `2A`. Clicking any album tile drops into the full Rekordbox-style detail
+instead: every track with its BPM and Camelot key, grouped back under its
+album, same as the scan results table.
 
 **Playlists** is Rekordbox's own tree: **All Tracks** first (the same flat
 table as the Tracks pill — one function renders both), then folders and

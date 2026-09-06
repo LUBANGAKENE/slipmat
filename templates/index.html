@@ -226,16 +226,31 @@
   .rel .meta{color:var(--dim);font-size:13px}
   .rel .meta span+span:before{content:"·";margin:0 8px;color:var(--line2)}
 
-  table{width:100%;border-collapse:collapse;margin-top:6px}
-  td{padding:8px 6px;border-bottom:1px solid #1A1E23;vertical-align:baseline}
+  table{width:100%;border-collapse:collapse;margin-top:6px;table-layout:fixed}
+  /* baseline pins every cell to the *first* line of whichever cell wraps
+     tallest - a title with composer/publisher credits baked into it (that's
+     what was actually printed on the label, so it's what gets transcribed)
+     can wrap to 3-4 lines, leaving position/duration/bpm floating at the
+     top disconnected from the row they belong to. top keeps them pinned to
+     the row's actual top edge instead, which reads as intentional at any
+     wrap height. */
+  td{padding:8px 6px;border-bottom:1px solid #1A1E23;vertical-align:top;
+    overflow-wrap:break-word}
   tr:last-child td{border-bottom:0}
-  td.pos{width:44px;color:var(--dim);font-weight:600;
+  td.pos{width:34px;color:var(--dim);font-weight:600;
     font-family:var(--font-mono);font-size:13px}
-  td.dur{width:58px;text-align:right;color:var(--dim);
+  td.dur{width:46px;text-align:right;color:var(--dim);
     font-family:var(--font-mono);font-size:13px}
-  td.bpm{width:104px;text-align:right;color:var(--line2);font-size:12px;font-style:italic}
+  td.bpm{width:70px;text-align:right;color:var(--line2);font-size:12px;font-style:italic}
   td.bpm.got{color:var(--amber);font-style:normal;
     font-family:var(--font-mono);font-size:12.5px}
+  /* Duration is the least essential of the four columns on a narrow phone -
+     position and BPM/key are what the README's own "where to drop the
+     needle" promise is actually about. Freeing its width gives the title
+     column meaningfully more room before it needs to wrap at all. */
+  @media(max-width:480px){
+    td.dur{display:none}
+  }
   td.bpm .key{color:var(--teal);font-weight:600}
 
   .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
@@ -303,7 +318,6 @@
       <button class="pill-filter" data-view="tracks">Tracks</button>
       <button class="pill-filter" data-view="playlists">Playlists</button>
       <span id="library-chip"></span>
-      <button class="ghost" id="libListLink" style="margin-left:auto">View as list</button>
     </nav>
     <div class="cover-grid" id="library-grid"></div>
     <div id="library-tracks" style="display:none"></div>
@@ -552,8 +566,6 @@ function showLibraryView(view){
   if (view === 'playlists') loadPlaylistsIfNeeded();
   renderLibraryViews();
 }
-
-$('#libListLink').onclick = () => showLibraryView('list');
 
 $('#library-pills').addEventListener('click', e => {
   if (e.target.id === 'clearArtistFilter'){
