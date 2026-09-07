@@ -203,20 +203,20 @@ order, in the SQL Editor — each is a no-op if you're already caught up:
 
 ## Deploying to Vercel
 
-`vercel.json` and `api/index.py` are set up — import the repo in Vercel, add
-the same environment variables you put in `.env` (Project → Settings →
-Environment Variables), and deploy. `requirements.txt` and the templates are
-picked up automatically.
+`vercel.json` builds `app.py` with `@vercel/python` and routes every path to
+it, so the Flask app runs unchanged and sees the real URL. Import the repo in
+Vercel, add the same environment variables you put in `.env` (Project →
+Settings → Environment Variables), and deploy — `requirements.txt` and the
+templates are picked up automatically.
 
 One caveat worth knowing before you rely on it: a scan is a single vision-model
 call that regularly runs **15–40 seconds**, and Vercel caps a function at 10 s
-on the Hobby plan. `maxDuration` in `vercel.json` is set to 60, which only
-takes effect on Pro — on Hobby, `/api/scan` and a large `/api/bpm` batch will
-time out. Everything else is fine on any plan: the homepage, the scan UI
-itself, and the entire signed-in library (albums, tracks, playlists) talk
-straight to Supabase from the browser and never touch the function timeout. If
-scanning has to work reliably on a free tier, a host that runs a persistent
-process — Render, Railway, Fly.io — fits this app better than serverless.
+on the Hobby plan — `/api/scan` and a large `/api/bpm` batch will time out
+there. Everything else is fine on any plan: the homepage, the scan UI itself,
+and the entire signed-in library (albums, tracks, playlists) talk straight to
+Supabase from the browser and never touch the function timeout. If scanning
+has to work reliably on a free tier, a host that runs a persistent process —
+Render, Railway, Fly.io — fits this app better than serverless.
 
 ---
 
