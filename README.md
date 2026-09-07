@@ -235,7 +235,10 @@ tracklist only when the photos show none at all. It fills in the other
 direction too: when the tracklist *is* legible but the sleeve never names the
 release — a white label, a cover that's all artwork — the model is asked which
 record those songs are from, and MusicBrainz confirms the answer before it's
-written. The tracklist itself is still the sleeve's; only the name is looked up.
+written. A hits compilation is the exception: a dozen of them carry the same
+singles, so it can't be pinned from its tracklist — it's just labelled
+*Various Artists* and left there. The tracklist itself is always the sleeve's;
+only the name is looked up.
 
 **3. The recogniser proposes, the database disposes.** When a fallback runs,
 the model's output is a hypothesis, never an answer. Results are searched

@@ -50,9 +50,20 @@ Return ONLY minified JSON, no markdown fence:
  "confidence": "high"|"medium"|"low",
  "notes": str}
 
-"position" is the side-and-index marking printed beside each track: "A1", "A2",
-"B1" and so on. Preserve the printed order. If sides are shown but tracks are
-not individually numbered, number them yourself in printed order.
+"artist" is the credited recording artist. If this is a various-artists
+release - a hits compilation, a label sampler, a covers album played by
+uncredited session musicians - and no single performer is named on the
+sleeve, set "artist" to "Various Artists" rather than null. Reserve null for
+a single-artist record whose name you genuinely could not read. If the sleeve
+states the tracks are re-recordings or not by the original artists, say so in
+"notes".
+
+"position" is the side-and-index marking printed beside each track: always the
+"A1", "A2", "B1" form - translate any language's side wording ("Sida 1",
+"Seite 1", "Face A", "Lato A") to that. Preserve the printed order. If sides
+are shown but tracks are not individually numbered, number them yourself in
+printed order. If no side is shown at all, split the list down the middle into
+an A side and a B side.
 
 "duration" only when a running time is printed beside the track.
 "notes" should mention anything unreadable or ambiguous, briefly.
@@ -166,6 +177,9 @@ Return ONLY minified JSON, no fence:
 
 Use null if you genuinely cannot place it. Do not offer a plausible-sounding
 name you are not actually sure of - a null here is fine, a wrong answer is not.
+If these tracks are clearly by many different original artists - a hits
+compilation - return {"artist": "Various Artists", "album": <the collection's
+name if it is well known, else null>}.
 """
 
 
@@ -198,26 +212,44 @@ def _guess_release_from_tracks(titles, model=None, timeout=45):
     return g if isinstance(g, dict) else None
 
 
+_VARIOUS = {"various artists", "various", "va", "v/a", "diverse artister",
+            "olika artister"}
+
+
 def name_from_tracklist(rec, model=None):
-    """The sleeve gave a tracklist but no album title. Ask the model which
-    record these songs are from, then confirm that guess against MusicBrainz -
-    the same verifier the metadata path already uses - before writing anything.
-    The tracklist itself is never touched; it came off the sleeve and is
-    trusted over any database. Returns (rec, best_match_or_None).
+    """The sleeve gave a tracklist but no album (or no artist). Ask the model
+    which record these songs are from, then confirm that guess against
+    MusicBrainz - the same verifier the metadata path already uses - before
+    writing anything. The tracklist itself is never touched; it came off the
+    sleeve and is trusted over any database. Mutates and returns rec; sets
+    rec["release_source"] when it fills anything.
     """
     import identify
 
     titles = [t.get("title") for t in (rec.get("tracks") or []) if t.get("title")]
     if len(titles) < 2:
-        return rec, None
+        return rec
 
     guess = _guess_release_from_tracks(titles, model)
-    if not guess or not guess.get("album"):
-        return rec, None
+    if not guess:
+        return rec
+
+    # A hits compilation can't be pinned from its tracklist - a dozen of them
+    # carry the same singles, and the model will happily name the wrong one.
+    # Take "Various Artists" for the missing artist and stop there; a sleeve
+    # album title already beats a guess, and a guessed one is worse than blank.
+    if (guess.get("artist") or "").strip().lower() in _VARIOUS:
+        if not rec.get("artist"):
+            rec["artist"] = "Various Artists"
+            rec["release_source"] = "recognised as a various-artists compilation"
+        return rec
+
+    if not guess.get("album"):
+        return rec
 
     hits = identify.verify_text(guess.get("artist"), guess.get("album"))
     if not hits or hits[0]["match"] == "weak":
-        return rec, None
+        return rec
 
     best = hits[0]
     try:
@@ -236,7 +268,8 @@ def name_from_tracklist(rec, model=None):
         rec["catalog_number"] = best.get("catno") or ", ".join(
             li.get("catalog-number", "") for li in (full.get("label-info") or [])
             if li.get("catalog-number")) or None
-    return rec, best
+    rec["release_source"] = "identified from the tracklist (%s)" % best["match"]
+    return rec
 
 
 def scan_and_fill(images, **kw):
@@ -268,13 +301,11 @@ def scan_and_fill(images, **kw):
 
     elif not rec.get("album") or not rec.get("artist"):
         # The tracklist read fine but the sleeve never names the release - a
-        # white label, or a cover that's all artwork. Work backwards from the
-        # songs. tracklist_source stays "sleeve": the tracks are still the
-        # sleeve's, only the release name is looked up.
+        # white label, a cover that's all artwork, a compilation with no single
+        # artist. Work backwards from the songs. tracklist_source stays
+        # "sleeve": the tracks are still the sleeve's, only the name is looked up.
         try:
-            rec, best = name_from_tracklist(rec, model=kw.get("model"))
-            if best:
-                rec["release_source"] = "identified from the tracklist (%s)" % best["match"]
+            rec = name_from_tracklist(rec, model=kw.get("model"))
         except identify.MusicBrainzUnavailable:
             pass   # keep the sleeve read; a nameless tracklist is still useful
 
