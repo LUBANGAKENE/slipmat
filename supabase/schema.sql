@@ -72,6 +72,11 @@ create policy "tracks: owner full access" on public.tracks
 -- This is the one place a join table is actually the right call, unlike
 -- albums/tracks above: a track can sit in any number of playlists, so
 -- playlist_tracks below is a genuine many-to-many, not ownership.
+-- image_url holds a downscaled data: URL for a playlist's custom cover, set
+-- from the detail page. Null falls back to a mosaic of the playlist's album
+-- art. Stored on the row rather than in a Storage bucket for the same reason
+-- the scan tool POSTs data: URLs - no infra to provision. loadPlaylists (the
+-- tree data) never selects it; the browse view fetches all of them once.
 create table public.playlists (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
@@ -79,6 +84,7 @@ create table public.playlists (
   kind        text not null check (kind in ('folder', 'playlist')),
   name        text not null,
   sort_index  int not null default 0,
+  image_url   text,
   created_at  timestamptz not null default now()
 );
 

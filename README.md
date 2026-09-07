@@ -142,33 +142,33 @@ to create a new one right there without leaving the page. BPM and Camelot
 key stay on every row, because those two numbers are the reason this app
 exists; the layout adapts around them rather than copying the reference
 exactly, and a **Sort** bar underneath lets you order the list by either —
-click again to reverse, same rule as the table below (key sorts around the
-Camelot wheel, not alphabetically), and the choice is shared with that
-table, so picking one here carries over there. The `⋯` on a row opens a
+click again to reverse (key sorts around the Camelot wheel, not
+alphabetically), and the choice is shared with **All Tracks** under
+Playlists, so picking one here carries over there. The `⋯` on a row opens a
 bottom sheet with **Add to playlist**, which is the touch-reachable path to
 what drag-and-drop does with a mouse — you can also drag a row straight onto
 a bubble. Clicking any album tile drops into the full Rekordbox-style detail
 instead: every track with its BPM and Camelot key, grouped back under its
 album, same as the scan results table.
 
-**Playlists** is Rekordbox's own tree: **All Tracks** first — the sortable
-flat table, where clicking the BPM or Key header sorts by it and clicking
-again reverses; key sorts around the Camelot wheel (`1A, 1B, 2A, 2B, …`),
-not alphabetically, so `10A` doesn't land ahead of `2A` — then folders and
-playlists underneath, nested arbitrarily deep. Right-click **Playlists** or
-any folder for a small panel — pick **New Playlist** or **New Folder**, then
-name it right there; no browser `prompt()` dialog, which looked and behaved
-like nothing else in this app. A playlist is a leaf, so right-clicking one
-gets no menu at all. Unlike Albums/Artists/Tracks — all just different
-views over the albums you've saved — playlists are real rows: a track can sit
-in any number of them, which is the one place in this schema a join table is
+**Playlists** opens as a browsable wall of covers — a **grid** or a **list**,
+toggled top-right. **All Tracks** sits first, styled like Spotify's Liked
+Songs; then your playlists, each showing its own photo or, until you set one,
+a 2×2 mosaic of its album art. The **+** in the header makes a new one.
+Clicking **All Tracks** opens every saved track as artwork rows, sortable by
+BPM or Key — that sort is the one shared with the Tracks page. Clicking a
+playlist opens its page: tap the cover to replace it with a photo (downscaled
+in the browser and stored on the row — [`0005`](supabase/migrations/0005_playlist_image.sql)),
+**Add** opens a searchable picker of every library track not already in it
+(BPM and key on each), and **Sort** chips reorder the view — **Added** is the
+default and keeps the order you built it in; BPM and Key re-sort what's shown
+without ever rewriting that stored order. A track's `⋯` here offers **Remove
+from this playlist**. Unlike Albums/Artists/Tracks — all just different views
+over the albums you've saved — playlists are real rows: a track can sit in
+any number of them, which is the one place in this schema a join table is
 actually the right call (`playlists`, a self-referencing tree of folders and
 playlists, and `playlist_tracks`, which track sits in which playlist and in
-what order). A playlist's own contents render in that stored order, not
-sortable — sorting would defeat the point of a deliberately ordered set.
-Drag a row out of **All Tracks** and drop it on a playlist in the tree to add
-it there — not onto a folder, which can't hold tracks directly, and not onto
-All Tracks itself, which is the read-only aggregate, not a real list.
+what order).
 
 Album covers come from the iTunes Search API (free, no key, CORS-open)
 matched on artist + album, resolved once and cached back onto the row. Artist
@@ -187,13 +187,17 @@ order, in the SQL Editor — each is a no-op if you're already caught up:
   re-fetch every visit instead of caching, and the console says why.
 - [`supabase/migrations/0003_playlists.sql`](supabase/migrations/0003_playlists.sql)
   — the `playlists` and `playlist_tracks` tables. Without it the Playlists
-  pill shows a permission/relation error instead of the tree.
+  pill shows a permission/relation error instead of the cover wall.
 - [`supabase/migrations/0004_playlist_tracks_bigint.sql`](supabase/migrations/0004_playlist_tracks_bigint.sql)
   — only if you ran `0003` before this fix. `sort_index` shipped as a 4-byte
-  `int`, and a drag-and-drop append writes a millisecond timestamp that
-  overflows it immediately — dropping a track onto a playlist fails with
-  `value ... is out of range for type integer`. New `0003` runs already get
-  the right type; this widens an existing one.
+  `int`, and adding a track appends `Date.now()`, a millisecond timestamp that
+  overflows it immediately — the insert fails with `value ... is out of range
+  for type integer`. New `0003` runs already get the right type; this widens
+  an existing one.
+- [`supabase/migrations/0005_playlist_image.sql`](supabase/migrations/0005_playlist_image.sql)
+  — `image_url` on `playlists`, for a playlist's custom cover. Without it the
+  detail page still works, it just can't save the photo you pick (and the
+  console says why); the album-art mosaic is unaffected.
 
 ---
 
