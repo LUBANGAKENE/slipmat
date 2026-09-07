@@ -690,6 +690,7 @@ function show(d, secs){
     <div class="foot">
       <span>confidence <span class="pill ${conf}">${conf}</span></span>
       <span>tracklist: ${esc(d.tracklist_source||'?')}</span>
+      ${d.release_source ? `<span>release: ${esc(d.release_source)}</span>` : ''}
       <span>${esc(d._model||'')} &middot; ${secs.toFixed(1)}s${
         d._cost!=null ? ' &middot; $'+Number(d._cost).toFixed(4) : ''}</span>
     </div>`;

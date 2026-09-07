@@ -15,7 +15,8 @@ starts from the object in your hands: it reads the text printed on the sleeve.
 
 - Drag in a photo of the front sleeve, back cover, or centre label
 - A vision model reads the printed text and returns structured data
-- Falls back to MusicBrainz when the photo shows no tracklist
+- Falls back to MusicBrainz when the photo shows no tracklist — or, when the
+  sleeve names no album, identifies the release from the tracklist instead
 - Prefers vinyl pressings over CD releases, so you get `A1/B2` rather than `1,2,3`
 - Runs on your phone over local wifi — camera or gallery, whichever you need
 - Fills in BPM and Camelot key per track where a catalogue knows them
@@ -229,11 +230,15 @@ which looks correct and is unverifiable.
 
 **2. Sleeve first, database second.** The record in your hands is ground truth.
 A database lookup can only guess *which pressing you own*, and the 1979 12"
-has different timings from the 2016 reissue. MusicBrainz is consulted only when
-the photos show no tracklist at all.
+has different timings from the 2016 reissue. MusicBrainz is consulted for the
+tracklist only when the photos show none at all. It fills in the other
+direction too: when the tracklist *is* legible but the sleeve never names the
+release — a white label, a cover that's all artwork — the model is asked which
+record those songs are from, and MusicBrainz confirms the answer before it's
+written. The tracklist itself is still the sleeve's; only the name is looked up.
 
-**3. The recogniser proposes, the database disposes.** When the fallback does
-run, the model's output is a hypothesis, never an answer. Results are searched
+**3. The recogniser proposes, the database disposes.** When a fallback runs,
+the model's output is a hypothesis, never an answer. Results are searched
 strictly, then fuzzily (so a misread `Rumors` still finds *Rumours*), and each
 candidate is tagged `exact` / `strong` / `weak`. That tag is the confidence
 gate — it is why a cheap model is good enough. `weak` is rejected outright.
@@ -251,7 +256,9 @@ tempo is allowed to fail it either — every tier below degrades to a blank cell
 ```
   photos ──► vision model ──► artist / album / tracklist ──► rendered
                  │                                              │
-                 └─ no tracklist? ─► MusicBrainz                 │
+                 ├─ no tracklist?   ─► MusicBrainz (by name)     │
+                 └─ no album name?  ─► model names it            │
+                                       ─► MusicBrainz confirms   │
                         strict, then fuzzy                       │
                         vinyl pressing preferred                 │
                                                                  ▼

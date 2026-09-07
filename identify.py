@@ -78,9 +78,10 @@ class MusicBrainzUnavailable(RuntimeError):
 def _mb_get(path, attempts=3, **params):
     """MusicBrainz is 1 req/sec and wants a real User-Agent. Be a good citizen.
 
-    503 from MusicBrainz means throttled or overloaded, not "no such release",
-    so it is retried with backoff and then raised as its own error type. The
-    caller can then degrade gracefully instead of failing the whole scan.
+    A 429/503 (throttled) or a 502/504 (their gateway having a moment) means
+    "not now", not "no such release" - so those are retried with backoff and
+    then raised as MusicBrainzUnavailable, which every caller degrades around.
+    Only a genuine 4xx like 404 falls through as a hard error.
     """
     global _last_mb
     params["fmt"] = "json"
@@ -103,7 +104,7 @@ def _mb_get(path, attempts=3, **params):
         finally:
             _last_mb = time.time()
 
-        if r.status_code in (429, 503):
+        if r.status_code in (429, 502, 503, 504):
             if attempt == attempts - 1:
                 raise MusicBrainzUnavailable(
                     "MusicBrainz returned %d after %d attempts"
