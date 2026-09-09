@@ -418,6 +418,24 @@
     td.dur{display:none}
   }
   td.bpm .key{color:var(--teal);font-weight:600}
+  /* A track's own artist only ever shows up here for a various-artists
+     compilation, where the title cell already wraps for long transcribed
+     titles - this follows the same rule rather than truncating. */
+  td .t-artist{font-size:12px;color:var(--dim);margin-top:2px}
+  /* The songs mixed inside a megamix. Indented under their parent track,
+     because that's one cue point on the record, not several. */
+  td .t-part{font-size:12px;color:var(--dim);margin-top:3px;padding-left:10px;
+    border-left:1px solid var(--line2)}
+  td .t-part span{font-family:var(--font-mono);font-size:11px;color:var(--line2);
+    margin-right:6px}
+  /* A mix's parts carry the original singles' tempos, not this pressing's -
+     dimmer than a measured row's, so the number doesn't read as gospel. */
+  td .t-part .p-bpm{margin-left:6px;margin-right:0;color:var(--line2)}
+  td .t-part .p-bpm.got{color:var(--amber);opacity:.75}
+  td .t-part .p-bpm .key{color:var(--teal);opacity:.85}
+  .mix-tag{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--dim);border:1px solid var(--line2);
+    border-radius:3px;padding:1px 5px;vertical-align:2px}
 
   .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
     margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
@@ -666,10 +684,20 @@ function show(d, secs){
                  .map(x=>`<span>${esc(x)}</span>`).join('');
   const tracks = d.tracks || [];
 
+  // A megamix or medley plays as one continuous track, so its component
+  // songs stay nested under the row rather than becoming rows of their own -
+  // there's one place to drop the needle, not four.
+  const partsHtml = (t, i) => (t.parts || []).map((p, j) =>
+    `<div class="t-part"><span>${esc(p.position||'')}</span>${esc(p.title||'')}${
+       p.duration ? ` <span>${esc(p.duration)}</span>` : ''
+     }<span class="p-bpm" id="bpm${i}p${j}"></span></div>`).join('');
+
   const rows = tracks.length
     ? tracks.map((t,i)=>`<tr>
         <td class="pos">${esc(t.position||'')}</td>
-        <td>${esc(t.title||'?')}</td>
+        <td>${esc(t.title||'?')}${t.is_mix
+            ? ' <span class="mix-tag">mix</span>' : ''}${t.artist
+            ? `<div class="t-artist">${esc(t.artist)}</div>` : ''}${partsHtml(t, i)}</td>
         <td class="dur">${esc(t.duration||'')}</td>
         <td class="bpm" id="bpm${i}">bpm / key</td></tr>`).join('')
     : `<tr><td colspan="4" class="empty">${
@@ -691,6 +719,7 @@ function show(d, secs){
       <span>confidence <span class="pill ${conf}">${conf}</span></span>
       <span>tracklist: ${esc(d.tracklist_source||'?')}</span>
       ${d.release_source ? `<span>release: ${esc(d.release_source)}</span>` : ''}
+      ${d.details_source ? `<span>details: ${esc(d.details_source)}</span>` : ''}
       <span>${esc(d._model||'')} &middot; ${secs.toFixed(1)}s${
         d._cost!=null ? ' &middot; $'+Number(d._cost).toFixed(4) : ''}</span>
     </div>`;
@@ -711,35 +740,55 @@ async function loadBpm(d){
   const tracks = d.tracks || [];
   if (!tracks.some(t=>t.title)) return;
 
+  // A megamix's own title exists in no streaming catalogue - it was cut for
+  // this pressing - but the songs mixed inside it are ordinary singles that
+  // resolve fine. So the parts are looked up alongside the tracks holding
+  // them, in the same request, and each gets its own cell to write into.
+  const entries = [];
+  tracks.forEach((t,i)=>{
+    entries.push({title:t.title||'', artist:t.artist||null,
+                  id:'bpm'+i, row:t, isMix:!!t.is_mix});
+    (t.parts||[]).forEach((p,j)=>entries.push({
+      title:p.title||'', artist:p.artist||null,
+      id:`bpm${i}p${j}`, row:p, isPart:true}));
+  });
+
   const run = ++bpmRun;
-  const cells = tracks.map((t,i)=>document.getElementById('bpm'+i));
+  const cells = entries.map(e=>document.getElementById(e.id));
   cells.forEach(c=>{ if(c) c.textContent='…'; });
 
   try{
     const r = await fetch('/api/bpm', {method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({artist:d.artist, titles:tracks.map(t=>t.title||'')})});
+      body: JSON.stringify({artist:d.artist, titles:entries.map(e=>e.title),
+        artists:entries.map(e=>e.artist)})});
     const body = await r.json();
     if (run !== bpmRun) return;
     if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
 
     (body.results||[]).forEach((f,i)=>{
-      const c = cells[i];
+      const e = entries[i], c = cells[i];
+      if (!e) return;
       if (f){
-        // Written back onto the track itself, not just painted into the DOM -
-        // Save to library reads from here, and the cell is thrown away the
-        // next time show() runs.
-        tracks[i].bpm = f.bpm; tracks[i].key = f.key; tracks[i].bpm_source = f.source;
+        // Written back onto the track (or part) itself, not just painted into
+        // the DOM - Save to library reads from here, and the cell is thrown
+        // away the next time show() runs.
+        e.row.bpm = f.bpm; e.row.key = f.key; e.row.bpm_source = f.source;
       }
       if (!c) return;
-      if (!f){ c.textContent = '—'; return; }
+      if (!f){ c.textContent = e.isMix ? 'mix' : '—'; return; }
       c.classList.add('got');
-      c.title = 'via ' + (f.source||'?');
+      // A part's tempo is the original single's, not this mix's: a megamix
+      // pitches and re-edits what it samples. Say so rather than letting the
+      // number read as measured off the record in your hands.
+      c.title = e.isPart
+        ? 'original recording, via ' + (f.source||'?') + ' — the mix re-edits tempo'
+        : 'via ' + (f.source||'?');
       c.innerHTML = `${esc(String(f.bpm))} <span class="key">${esc(f.key||'')}</span>`;
     });
   } catch(err){
     if (run !== bpmRun) return;
-    cells.forEach(c=>{ if(c) c.textContent='—'; });
+    entries.forEach((e,i)=>{ if(cells[i]) cells[i].textContent = e.isMix ? 'mix' : '—'; });
     console.warn('bpm lookup failed:', err.message);
   }
 }
@@ -887,11 +936,18 @@ async function saveToLibrary(d){
   st.textContent = 'Saving…';
 
   try{
+    // Apple's catalogue first - it's the one covering ex-CD/streaming
+    // releases, so it wins when both have an answer. Discogs is the
+    // fallback: only reached when iTunes has nothing, which is exactly the
+    // vinyl-only case Discogs was originally added here to cover.
+    const coverUrl = (await resolveCoverArt(d.artist, d.album)) || d.cover_url || null;
+
     const { data: album, error } = await supabaseClient.from('albums').insert({
       artist: d.artist || null, album: d.album || null, year: d.year || null,
       label: d.label || null, catalog_number: d.catalog_number || null,
       confidence: d.confidence || null, notes: d.notes || null,
       tracklist_source: d.tracklist_source || null, model: d._model || null,
+      cover_url: coverUrl,
     }).select().single();
     if (error) throw error;
 
@@ -2131,14 +2187,22 @@ function renderLibraryAlbum(a){
 // catalogue - anything that ever had a digital release is in it. A vinyl-only
 // white label won't be, same gap as the BPM lookup and for the same reason,
 // so a miss just leaves the plain tile rather than blocking anything.
+const GENERIC_ARTISTS = new Set(['various artists', 'various', 'va', 'v/a',
+  'diverse artister', 'olika artister', 'unknown artist']);
+
 async function resolveCoverArt(artist, album){
   if (!album) return null;
+  // "Various Artists" as a search/match term is worse than no artist at all:
+  // it dilutes the query and then rejects every real result, since no
+  // release on iTunes is actually credited to that placeholder.
+  const isGeneric = GENERIC_ARTISTS.has((artist||'').trim().toLowerCase());
+  const queryArtist = isGeneric ? null : artist;
   try{
     const r = await fetch('https://itunes.apple.com/search?' + new URLSearchParams({
-      term: [artist, album].filter(Boolean).join(' '), entity: 'album', limit: 5,
+      term: [queryArtist, album].filter(Boolean).join(' '), entity: 'album', limit: 5,
     }));
     const body = await r.json();
-    const wantArtist = (artist || '').toLowerCase().split(' ')[0];
+    const wantArtist = (queryArtist || '').toLowerCase().split(' ')[0];
     const hit = (body.results || []).find(it =>
       !wantArtist || (it.artistName || '').toLowerCase().includes(wantArtist));
     return hit?.artworkUrl100 ? hit.artworkUrl100.replace('100x100bb', '600x600bb') : null;

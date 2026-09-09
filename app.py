@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, jsonify, render_template, request
 
 import bpm
+import identify
 import vinyl
 
 app = Flask(__name__)
@@ -76,14 +77,29 @@ def api_bpm():
     payload = request.get_json(silent=True) or {}
     artist = payload.get("artist")
     titles = payload.get("titles") or []
+    # Per-track artist, for a various-artists compilation where every song
+    # has a different original performer - "Various Artists" as the search
+    # artist finds nothing useful. Falls back to the release-level artist
+    # when a track has none of its own, i.e. every ordinary release.
+    track_artists = payload.get("artists") or []
     if not titles:
         return jsonify({"error": "no titles supplied"}), 400
-    if len(titles) > 40:
-        return jsonify({"error": "at most 40 tracks per request"}), 400
+    # Headroom over a long LP's track count, because the songs inside a
+    # megamix are looked up alongside the tracks holding them.
+    if len(titles) > 60:
+        return jsonify({"error": "at most 60 tracks per request"}), 400
 
-    def one(title):
+    # "Various Artists" (or "VA", "Unknown Artist", ...) is worse than no
+    # artist at all as a search term - it constrains the lookup to a name
+    # that doesn't exist in Spotify's or ReccoBeats' catalogue, rather than
+    # leaving the field open to a title-only search. Only a real
+    # release-level artist name is worth falling back to.
+    fallback_artist = None if identify.is_generic_artist(artist) else artist
+
+    def one(args):
+        title, track_artist = args
         try:
-            feat = bpm.lookup(artist, title)
+            feat = bpm.lookup(track_artist or fallback_artist, title)
         except Exception:
             traceback.print_exc()
             return None
@@ -93,11 +109,14 @@ def api_bpm():
                 "key": feat.get("camelot") or feat.get("key"),
                 "source": feat["source"]}
 
+    pairs = [(t, track_artists[i] if i < len(track_artists) else None)
+            for i, t in enumerate(titles)]
+
     # Run them side by side. Serially, a ten-track LP left the column showing
     # dots for the better part of half a minute; the lookup client keeps its
     # own rate limit, so widening this further just queues up inside it.
     with ThreadPoolExecutor(max_workers=6) as pool:
-        results = list(pool.map(one, titles))
+        results = list(pool.map(one, pairs))
 
     return jsonify({"results": results})
 

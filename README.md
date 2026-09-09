@@ -15,8 +15,9 @@ starts from the object in your hands: it reads the text printed on the sleeve.
 
 - Drag in a photo of the front sleeve, back cover, or centre label
 - A vision model reads the printed text and returns structured data
-- Falls back to MusicBrainz when the photo shows no tracklist — or, when the
-  sleeve names no album, identifies the release from the tracklist instead
+- Falls back to Discogs, then MusicBrainz, when the photo shows no tracklist
+  — or, when the sleeve names no album, identifies the release from the
+  tracklist instead
 - Prefers vinyl pressings over CD releases, so you get `A1/B2` rather than `1,2,3`
 - Runs on your phone over local wifi — camera or gallery, whichever you need
 - Fills in BPM and Camelot key per track where a catalogue knows them
@@ -79,6 +80,24 @@ VINYL_MODEL=google/gemini-2.5-flash
 
 Roughly $0.001 per scan with Flash — about 1,000 records per dollar. Any
 vision-capable OpenRouter model works; change `VINYL_MODEL` to swap.
+
+### Discogs token (optional, better identification)
+
+Add one line to `.env`:
+
+```
+DISCOGS_TOKEN=...
+```
+
+Get it free at <https://www.discogs.com/settings/developers> — log in,
+**Generate new token**. No app review, no redirect URI, nothing else to fill
+in.
+
+This is what `identify.py` reaches for first whenever the sleeve shows no
+tracklist, or shows a tracklist but no album name — Discogs is built around
+individual vinyl pressings and catalogue numbers in a way MusicBrainz isn't,
+so it recognises records MusicBrainz misses. Leave it unset and Slipmat falls
+back to MusicBrainz alone, exactly as before.
 
 ### Spotify credentials (optional, for BPM and key)
 
@@ -230,21 +249,25 @@ which looks correct and is unverifiable.
 
 **2. Sleeve first, database second.** The record in your hands is ground truth.
 A database lookup can only guess *which pressing you own*, and the 1979 12"
-has different timings from the 2016 reissue. MusicBrainz is consulted for the
-tracklist only when the photos show none at all. It fills in the other
-direction too: when the tracklist *is* legible but the sleeve never names the
-release — a white label, a cover that's all artwork — the model is asked which
-record those songs are from, and MusicBrainz confirms the answer before it's
-written. A hits compilation is the exception: a dozen of them carry the same
-singles, so it can't be pinned from its tracklist — it's just labelled
-*Various Artists* and left there. The tracklist itself is always the sleeve's;
-only the name is looked up.
+has different timings from the 2016 reissue. Discogs (falling back to
+MusicBrainz) is consulted for the tracklist only when the photos show none at
+all. It fills in the other direction too: when the tracklist *is* legible but
+the sleeve never names the release — a white label, a cover that's all
+artwork — the model is asked which record those songs are from, and the same
+database pass confirms the answer before it's written. A hits compilation is
+the exception: a dozen of them carry the same singles, so it can't be pinned
+from its tracklist — it's just labelled *Various Artists* and left there. The
+tracklist itself is always the sleeve's; only the name is looked up.
 
 **3. The recogniser proposes, the database disposes.** When a fallback runs,
-the model's output is a hypothesis, never an answer. Results are searched
-strictly, then fuzzily (so a misread `Rumors` still finds *Rumours*), and each
-candidate is tagged `exact` / `strong` / `weak`. That tag is the confidence
-gate — it is why a cheap model is good enough. `weak` is rejected outright.
+the model's output is a hypothesis, never an answer. Discogs is tried first —
+its catalogue of individual vinyl pressings runs deeper than MusicBrainz's for
+the records this app scans — and MusicBrainz is tried only when Discogs isn't
+configured, is down, or comes back with nothing better than a weak match.
+Either way, results are searched strictly, then fuzzily (so a misread `Rumors`
+still finds *Rumours*), and each candidate is tagged `exact` / `strong` /
+`weak`. That tag is the confidence gate — it is why a cheap model is good
+enough. `weak` is rejected outright.
 
 **4. A blank beats a guess.** The same rule governs BPM lookup. Search always
 returns *something*, so every result is checked against what was asked for
@@ -259,10 +282,10 @@ tempo is allowed to fail it either — every tier below degrades to a blank cell
 ```
   photos ──► vision model ──► artist / album / tracklist ──► rendered
                  │                                              │
-                 ├─ no tracklist?   ─► MusicBrainz (by name)     │
+                 ├─ no tracklist?   ─► Discogs, then MB (by name)│
                  └─ no album name?  ─► model names it            │
-                                       ─► MusicBrainz confirms   │
-                        strict, then fuzzy                       │
+                                       ─► Discogs, then MB confirm│
+                        strict, then fuzzy, per source            │
                         vinyl pressing preferred                 │
                                                                  ▼
                                        per track:  cache ──► Spotify search
@@ -283,7 +306,7 @@ In the live path:
 |---|---|
 | `app.py` | Flask server — page, `/api/scan`, `/api/bpm` |
 | `vinyl.py` | The engine — vision call, prompt, fallback orchestration |
-| `identify.py` | MusicBrainz search, fuzzy matching, vinyl-preference ranking |
+| `identify.py` | Discogs and MusicBrainz search, fuzzy matching, vinyl-preference ranking |
 | `bpm.py` | BPM/key resolution — cache → Spotify search → ReccoBeats |
 | `analyze.py` | Camelot conversion, half/double time, pitch-fader math |
 | `templates/index.html` | The dashboard (`/app`) — also talks to Supabase directly for auth and the library |
@@ -304,9 +327,10 @@ Standalone, not reachable from the dashboard:
 
 ## Notes
 
-- MusicBrainz throttles and returns 503 under load. This is normal; requests
-  retry with backoff and degrade gracefully rather than losing a good scan.
-  Set `MB_USER_AGENT` to something with your contact details.
+- Both Discogs and MusicBrainz throttle and occasionally return 429/503 under
+  load. This is normal; requests retry with backoff and degrade gracefully
+  rather than losing a good scan. Set `MB_USER_AGENT` to something with your
+  contact details; Discogs just needs `DISCOGS_TOKEN`.
 - Photographing the **back cover** is both faster and more accurate than the
   database fallback — you get that exact pressing's tracklist.
 - Sleeves are typeset, so the model reads back real typographic punctuation.

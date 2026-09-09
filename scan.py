@@ -92,20 +92,9 @@ def fill_tracklist(rec):
         return rec, None
 
     best = hits[0]
-    data = identify._mb_get("release/" + best["mbid"], inc="recordings")
-
-    tracks = []
-    for medium in data.get("media", []):
-        for t in medium.get("tracks", []):
-            ms = t.get("length")
-            tracks.append({
-                "position": t.get("number"),
-                "title": t.get("title"),
-                "duration": "%d:%02d" % (ms // 60000, ms // 1000 % 60) if ms else None,
-            })
-
-    rec["tracks"] = tracks
-    rec.setdefault("year", best.get("date"))
+    full = identify.resolve_release(best)
+    rec["tracks"] = full["tracks"]
+    rec.setdefault("year", full.get("year"))
     return rec, best
 
 
@@ -131,7 +120,7 @@ def show(rec, source=None):
 
     tail = "  confidence: %s" % rec.get("confidence", "?")
     if source:
-        tail += "   tracklist from MusicBrainz (%s)" % source
+        tail += "   tracklist from %s" % source
     print("\n" + tail)
     if rec.get("notes"):
         print("  " + rec["notes"])
@@ -148,7 +137,7 @@ if __name__ == "__main__":
     if not record.get("tracks"):
         record, best = fill_tracklist(record)
         if best:
-            source = "%s %s" % (best["format"], best.get("date") or "")
+            source = "%s (%s %s)" % (best["source"], best["format"], best.get("date") or "")
 
     if "--json" in sys.argv:
         print(json.dumps(record, indent=2))
