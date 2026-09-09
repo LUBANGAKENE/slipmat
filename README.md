@@ -218,6 +218,11 @@ order, in the SQL Editor — each is a no-op if you're already caught up:
   — `image_url` on `playlists`, for a playlist's custom cover. Without it the
   detail page still works, it just can't save the photo you pick (and the
   console says why); the album-art mosaic is unaffected.
+- [`supabase/migrations/0006_track_artist_and_mix_parts.sql`](supabase/migrations/0006_track_artist_and_mix_parts.sql)
+  — `artist`, `is_mix` and `parts` on `tracks`. Without it saving still works,
+  it just drops those three (the save button says so, and the console names
+  the migration). It's what lets a saved compilation keep each song's own
+  performer, and a saved megamix keep the songs inside it with their tempos.
 
 ---
 

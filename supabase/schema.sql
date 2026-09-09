@@ -44,6 +44,19 @@ create policy "albums: owner full access" on public.albums
 --
 -- sort_index preserves printed order explicitly rather than relying on
 -- `position` to sort correctly - "A10" would sort before "A2" as text.
+--
+-- artist is per-track and normally null: it only carries a value when it
+-- differs from the album's own, which in practice means a various-artists
+-- compilation where every song has a different original performer.
+--
+-- is_mix / parts describe a megamix or medley - one continuous groove that
+-- plays several songs. parts is jsonb rather than child rows because those
+-- songs are not separately cueable: they have no independent existence on
+-- the record, are never reordered, never land in a playlist, and are only
+-- ever read back with the track that holds them. A self-referencing parent
+-- row would buy a join, an ordering column and its own RLS policy for
+-- nothing. Postgres can still search inside it when needed:
+--   select * from tracks where parts @> '[{"title": "The Power"}]';
 create table public.tracks (
   id           uuid primary key default gen_random_uuid(),
   album_id     uuid not null references public.albums(id) on delete cascade,
@@ -51,10 +64,13 @@ create table public.tracks (
   sort_index   int not null,
   position     text,
   title        text not null,
+  artist       text,
   duration     text,
   bpm          numeric,
   key_camelot  text,
-  bpm_source   text
+  bpm_source   text,
+  is_mix       boolean not null default false,
+  parts        jsonb
 );
 
 create index tracks_album_id_idx on public.tracks (album_id);

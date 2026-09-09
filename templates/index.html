@@ -951,18 +951,40 @@ async function saveToLibrary(d){
     }).select().single();
     if (error) throw error;
 
+    // parts carries the BPM/key resolved for each song inside a mix, which
+    // loadBpm wrote back onto the part objects - so a saved megamix keeps
+    // the tempos its own row can never have. See migration 0006.
     const trackRows = (d.tracks || []).map((t, i) => ({
       album_id: album.id, sort_index: i, position: t.position || null,
-      title: t.title || '?', duration: t.duration || null,
+      title: t.title || '?', artist: t.artist || null, duration: t.duration || null,
       bpm: t.bpm ?? null, key_camelot: t.key ?? null, bpm_source: t.bpm_source ?? null,
+      is_mix: !!t.is_mix,
+      parts: (t.parts || []).length ? t.parts.map(p => ({
+        position: p.position || null, title: p.title || null,
+        artist: p.artist || null, duration: p.duration || null,
+        bpm: p.bpm ?? null, key: p.key ?? null, bpm_source: p.bpm_source ?? null,
+      })) : null,
     }));
+    let degraded = false;
     if (trackRows.length){
-      const { error: terr } = await supabaseClient.from('tracks').insert(trackRows);
+      let { error: terr } = await supabaseClient.from('tracks').insert(trackRows);
+
+      // A project that hasn't run migration 0006 has no artist/is_mix/parts
+      // columns, and Postgres rejects the whole insert (42703) rather than
+      // ignoring them - which would lose the entire tracklist over three
+      // optional fields. Drop them and save what the old schema does hold.
+      if (terr && (terr.code === '42703' || /column .* does not exist/i.test(terr.message||''))){
+        console.warn('tracks insert: schema predates migration 0006, saving without '
+                     + 'per-track artist / mix parts —', terr.message);
+        const legacy = trackRows.map(({ artist, is_mix, parts, ...keep }) => keep);
+        ({ error: terr } = await supabaseClient.from('tracks').insert(legacy));
+        degraded = !terr;
+      }
       if (terr) throw terr;
     }
 
     st.className = 'status ok';
-    st.textContent = 'Saved.';
+    st.textContent = degraded ? 'Saved (run migration 0006 to keep mix details).' : 'Saved.';
     btn.textContent = 'Saved';
   } catch(err){
     st.className = 'status err';
@@ -1045,7 +1067,11 @@ function flattenTracks(albums){
   const out = [];
   for (const a of albums){
     for (const t of (a.tracks || [])){
-      out.push({ ...t, artist: a.artist, album: a.album, cover_url: a.cover_url });
+      // The track's own artist wins where it has one. On a various-artists
+      // compilation the album is credited to nobody in particular, so
+      // falling back to that would label every song "Various Artists".
+      out.push({ ...t, artist: t.artist || a.artist,
+                 album: a.album, cover_url: a.cover_url });
     }
   }
   return out;
@@ -1741,7 +1767,7 @@ async function renderPlaylistDetail(playlistId){
   const [{ data: meta, error: mErr }, { data: pts, error: tErr }] = await Promise.all([
     supabaseClient.from('playlists').select('name, image_url').eq('id', playlistId).single(),
     supabaseClient.from('playlist_tracks')
-      .select('id, sort_index, tracks(id, title, duration, bpm, key_camelot, albums(artist, album, cover_url))')
+      .select('id, sort_index, tracks(id, title, artist, duration, bpm, key_camelot, albums(artist, album, cover_url))')
       .eq('playlist_id', playlistId)
       .order('sort_index'),
   ]);
@@ -1759,7 +1785,9 @@ async function renderPlaylistDetail(playlistId){
     duration: pt.tracks?.duration,
     bpm: pt.tracks?.bpm,
     key_camelot: pt.tracks?.key_camelot,
-    artist: pt.tracks?.albums?.artist,
+    // The song's own performer where it has one - a compilation's album
+    // credit ("Various Artists") names nobody useful on a playlist row.
+    artist: pt.tracks?.artist || pt.tracks?.albums?.artist,
     album: pt.tracks?.albums?.album,
     cover_url: pt.tracks?.albums?.cover_url,
   }));
@@ -2153,15 +2181,28 @@ function renderLibraryAlbum(a){
                  .map(x=>`<span>${esc(x)}</span>`).join('');
   const tracks = a.tracks || [];
 
+  // Mirrors the scan view: a mix is labelled as one, and the songs inside it
+  // sit nested under it with the original tempos looked up when it was
+  // scanned. A saved track's key column is key_camelot; a part's is key.
+  const savedParts = t => (t.parts || []).map(p =>
+    `<div class="t-part"><span>${esc(p.position||'')}</span>${esc(p.title||'')}${
+       p.duration ? ` <span>${esc(p.duration)}</span>` : ''
+     }${p.bpm != null
+       ? `<span class="p-bpm got" title="original recording — the mix re-edits tempo">${
+            esc(String(p.bpm))} <span class="key">${esc(p.key||'')}</span></span>`
+       : ''}</div>`).join('');
+
   const rows = tracks.length
     ? tracks.map(t=>`<tr>
         <td class="pos">${esc(t.position||'')}</td>
-        <td>${esc(t.title||'?')}</td>
+        <td>${esc(t.title||'?')}${t.is_mix
+            ? ' <span class="mix-tag">mix</span>' : ''}${t.artist
+            ? `<div class="t-artist">${esc(t.artist)}</div>` : ''}${savedParts(t)}</td>
         <td class="dur">${esc(t.duration||'')}</td>
         <td class="bpm${t.bpm!=null?' got':''}">${
           t.bpm != null
             ? `${esc(String(t.bpm))} <span class="key">${esc(t.key_camelot||'')}</span>`
-            : '—'
+            : (t.is_mix ? 'mix' : '—')
         }</td></tr>`).join('')
     : `<tr><td colspan="4" class="empty">No tracklist saved.</td></tr>`;
 
