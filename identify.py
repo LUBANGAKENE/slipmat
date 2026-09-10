@@ -614,6 +614,91 @@ def mb_track_artists(artist, album, catalog_number=None):
            for t in full.get("tracks") or [] if t.get("artist") and t.get("title")}
 
 
+def _recording_artist_once(title, before_year, want):
+    """One MusicBrainz recording search, reduced to a single artist name -
+    or None, on no match or ambiguity. See recording_artist for the full
+    reasoning; split out only so it can be asked twice and cross-checked.
+    """
+    try:
+        data = _mb_get("recording", query='recording:"%s"' % title, limit=100)
+    except MusicBrainzUnavailable:
+        return None
+
+    def before_cutoff(r):
+        if not before_year:
+            return True
+        # A recording with no date on file is not evidence it's old - most
+        # of MusicBrainz's undated entries turn out to be recent covers
+        # nobody's bothered dating, not overlooked originals. Letting them
+        # through defeated the filter: a 2000s cover with no listed date
+        # was sliding past a 1976 cutoff meant to exclude exactly that.
+        y = (r.get("first-release-date") or "")[:4]
+        # +2 years of slack, deliberately: a chart date, a pressing date and
+        # MusicBrainz's own first-release-date for the same recording
+        # routinely land a year apart. Verified directly - Rod Stewart's
+        # "Tonight's the Night" is dated 1977 in MusicBrainz though the song
+        # is from 1976, and a strict <=1976 cutoff excluded it entirely,
+        # leaving an unrelated 1968 song of the same title as the only
+        # candidate: a confident, wrong answer. The slack only ever adds
+        # candidates, so it can only turn a wrong confident answer into a
+        # correct "ambiguous" - it can't manufacture a false single match.
+        return y.isdigit() and int(y) <= int(before_year) + 2
+
+    artists = {" ".join(c.get("name", "") for c in (r.get("artist-credit") or [])).strip()
+              for r in (data.get("recordings") or [])
+              if _norm(r.get("title")) == want and before_cutoff(r)}
+    # MusicBrainz's own placeholders for "nobody knows" - "[unknown]",
+    # "[data]", "[traditional]" and the like - are not a real artist name;
+    # worse, treating one as an answer would silently exclude an actual
+    # legible answer from a same-titled recording that also matched.
+    artists = {a for a in artists if a and not re.fullmatch(r"\[.*\]", a)}
+    return artists.pop() if len(artists) == 1 else None
+
+
+def recording_artist(title, before_year=None):
+    """The performing artist of one song, found by title alone - no album,
+    no context beyond an optional cutoff year. Last resort, tried only for a
+    track still unlabelled after both an album-level Discogs lookup and an
+    album-level MusicBrainz lookup (mb_track_artists) came back empty - a
+    record obscure enough that neither service has it catalogued as a
+    release at all.
+
+    Deliberately conservative: MusicBrainz's recording search returns every
+    recording anyone has ever titled that, across every artist who ever
+    performed or covered it, and only ranks them by text relevance - an
+    exact title match scores the same regardless of which one it is. Two
+    different songs sharing a title is not rare: Saturday Night Fever's own
+    tracklist has two different recordings both called "More Than A Woman"
+    (Bee Gees, and a Tavares cover), on the very same record. So this only
+    returns a name when every exact-titled recording agrees on one artist.
+
+    before_year narrows that (a track on a 1976 compilation can't be a cover
+    released in 2010), which resolves some real ambiguity, but not all of
+    it: a group that renamed itself mid-career shows up as two different
+    "artists" in MusicBrainz for recordings from before and after the
+    rename, and no amount of date filtering un-splits that.
+
+    Asked twice, independently, and only answered when both agree. A single
+    query already asks for MusicBrainz's own maximum page (100 of what can
+    be several hundred matches for a well-covered title), but several tied
+    on relevance score still land differently across separate requests -
+    verified directly: the same query for "Heaven Must Be Missing An Angel"
+    returned Tavares alone on some runs and an extra, undated, clearly
+    modern cover band on others, purely from where the tie broke. A result
+    this app can't reproduce on its own re-query isn't one to show as fact;
+    disagreement folds into "genuine ambiguity", the same honest None as
+    every other case here.
+    """
+    if not title:
+        return None
+    want = _norm(title)
+    first = _recording_artist_once(title, before_year, want)
+    if not first:
+        return None
+    second = _recording_artist_once(title, before_year, want)
+    return first if first == second else None
+
+
 # ------------------------------------------------------------------ the pipeline
 
 def identify(path):

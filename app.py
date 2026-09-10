@@ -121,6 +121,41 @@ def api_bpm():
     return jsonify({"results": results})
 
 
+@app.post("/api/track-artists")
+def api_track_artists():
+    """Third pass, fired alongside BPM lookup once the tracklist is already
+    on screen: MusicBrainz search per track title, for the rare track still
+    unlabelled after both an album-level Discogs lookup and an album-level
+    MusicBrainz lookup found nothing - a record obscure enough that neither
+    service has it catalogued as a release at all. See
+    identify.recording_artist for why this is conservative about answering
+    at all: title search alone can't tell two different songs called the
+    same thing apart, so ambiguous ones come back null rather than guessed.
+
+    Workers=1, not the 6 BPM uses: MusicBrainz enforces one request per
+    second server-side regardless, and _mb_get's throttle is a single
+    process-wide timestamp, not a per-thread one - running these
+    concurrently would just have threads contending over it for no gain.
+    """
+    payload = request.get_json(silent=True) or {}
+    titles = payload.get("titles") or []
+    before_year = payload.get("year")
+    if not titles:
+        return jsonify({"error": "no titles supplied"}), 400
+    if len(titles) > 40:
+        return jsonify({"error": "at most 40 tracks per request"}), 400
+
+    def one(title):
+        try:
+            return identify.recording_artist(title, before_year)
+        except Exception:
+            traceback.print_exc()
+            return None
+
+    results = [one(t) for t in titles]
+    return jsonify({"results": results})
+
+
 def lan_ip():
     """Best-effort LAN address so the phone can find this machine."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

@@ -695,7 +695,7 @@ function show(d, secs){
   const rows = tracks.length
     ? tracks.map((t,i)=>`<tr>
         <td class="pos">${esc(t.position||'')}</td>
-        <td>${esc(t.title||'?')}${t.is_mix
+        <td id="ttl${i}">${esc(t.title||'?')}${t.is_mix
             ? ' <span class="mix-tag">mix</span>' : ''}${t.artist
             ? `<div class="t-artist">${esc(t.artist)}</div>` : ''}${partsHtml(t, i)}</td>
         <td class="dur">${esc(t.duration||'')}</td>
@@ -728,6 +728,7 @@ function show(d, secs){
   lastRecord = d;
   refreshSaveRow();
   loadBpm(d);
+  loadTrackArtists(d);
 }
 
 // BPM and key are looked up after the tracklist is already on screen - they
@@ -790,6 +791,52 @@ async function loadBpm(d){
     if (run !== bpmRun) return;
     entries.forEach((e,i)=>{ if(cells[i]) cells[i].textContent = e.isMix ? 'mix' : '—'; });
     console.warn('bpm lookup failed:', err.message);
+  }
+}
+
+// Fourth pass, fired alongside BPM: for a various-artists compilation where
+// neither Discogs nor an album-level MusicBrainz lookup could name a
+// track's performer - a record obscure enough that neither service has it
+// catalogued as a release at all - this tries one more thing, searching
+// MusicBrainz for that song's title alone. Most titles come back null: two
+// different songs sharing a title is common, and the server only answers
+// when every recording with that exact title agrees on one artist. A name
+// this does find is layered onto the row after the render, not blocking it
+// - the same reason BPM is its own pass.
+let artistsRun = 0;
+
+async function loadTrackArtists(d){
+  if (!GENERIC_ARTISTS.has((d.artist||'').trim().toLowerCase())) return;
+  const tracks = d.tracks || [];
+  const missing = tracks.map((t,i)=>({t,i}))
+    .filter(({t}) => t.title && !t.artist && !t.is_mix);
+  if (!missing.length) return;
+
+  const run = ++artistsRun;
+  try{
+    const r = await fetch('/api/track-artists', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({titles: missing.map(m=>m.t.title), year: d.year || null})});
+    const body = await r.json();
+    if (run !== artistsRun) return;
+    if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
+
+    (body.results||[]).forEach((artist, idx) => {
+      if (!artist) return;
+      const { t, i } = missing[idx];
+      // Written back onto the track itself, not just painted into the DOM -
+      // Save to library reads from here too, same as BPM.
+      t.artist = artist;
+      const cell = document.getElementById('ttl'+i);
+      if (cell && !cell.querySelector('.t-artist')){
+        cell.insertAdjacentHTML('beforeend', `<div class="t-artist" title=`
+          + `"found by title search - not confirmed on this specific pressing">`
+          + `${esc(artist)}</div>`);
+      }
+    });
+  } catch(err){
+    if (run !== artistsRun) return;
+    console.warn('track-artist lookup failed:', err.message);
   }
 }
 
