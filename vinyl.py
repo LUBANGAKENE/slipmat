@@ -172,6 +172,16 @@ def fill_tracklist(rec):
     if best is not hits[0]:
         full = identify.resolve_release(best)   # re-fetch: hits[0] was MusicBrainz
     rec["tracks"] = full["tracks"]
+
+    # Discogs gave the tracklist but sometimes nobody's annotated who
+    # performs which song - a gap in Discogs' own data. MusicBrainz
+    # occasionally has just that; only worth asking for a various-artists
+    # release, where an ordinary album's tracks correctly have no artist
+    # of their own.
+    if (rec.get("artist") or "").strip().lower() in _VARIOUS:
+        _backfill_artists_from_musicbrainz(
+            rec["tracks"], rec.get("artist"), rec.get("album"), rec.get("catalog_number"))
+
     return rec, best
 
 
@@ -256,6 +266,30 @@ def _backfill_track_details(tracks, source_tracks):
     return durations, artists
 
 
+def _backfill_artists_from_musicbrainz(tracks, artist, album, catalog_number=None):
+    """A various-artists compilation whose Discogs tracklist came back with
+    no artist on any track - Discogs' contributors never annotated this one,
+    which happens for the less-documented compilations. MusicBrainz
+    sometimes has the credits Discogs doesn't. Only ever fills an artist
+    name, matched by title; never adds, removes, or reorders a track, and
+    only runs when every track is missing one - a partial Discogs credit
+    list is left alone rather than mixed with a different source.
+    """
+    import identify
+
+    if not tracks or any(t.get("artist") for t in tracks):
+        return 0
+
+    by_title = identify.mb_track_artists(artist, album, catalog_number)
+    filled = 0
+    for t in tracks:
+        got = by_title.get(identify._norm(t.get("title")))
+        if got:
+            t["artist"] = got
+            filled += 1
+    return filled
+
+
 def enrich_from_release(rec):
     """Consult the databases once the release is identified, and prefer what
     they hold over what the photo could make out.
@@ -314,10 +348,19 @@ def enrich_from_release(rec):
             except identify.DatabaseUnavailable:
                 full = {}
 
+        mb_artists = 0
         if full.get("tracks"):
             rec["tracks"] = full["tracks"]
             rec["tracklist_source"] = "discogs (%s %s)" % (
                 best["format"], best.get("date") or "")
+            # Discogs gave the tracklist but sometimes nobody's annotated who
+            # performs which song - a gap in Discogs' own data, not this
+            # app's. MusicBrainz occasionally has just that, so it's worth
+            # one more request, but only for a various-artists release: an
+            # ordinary album's tracks correctly have no artist of their own.
+            if artist.strip().lower() in _VARIOUS:
+                mb_artists = _backfill_artists_from_musicbrainz(
+                    rec["tracks"], artist, album, rec.get("catalog_number"))
         elif tracks:
             # Nothing to replace it with - keep the sleeve's, top up its gaps.
             durations, artists = _backfill_track_details(tracks, full.get("tracks"))
@@ -325,6 +368,10 @@ def enrich_from_release(rec):
             if artists:
                 bits.append("%d track artist%s" % (artists, "" if artists == 1 else "s"))
             filled = ", %s filled" % ", ".join(bits) if bits else ""
+
+        if mb_artists:
+            filled += ", %d artist%s from musicbrainz" % (
+                mb_artists, "" if mb_artists == 1 else "s")
 
     rec["details_source"] = "%s (%s%s)" % (best["source"], best["match"], filled)
     return rec

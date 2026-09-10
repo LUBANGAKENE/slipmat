@@ -588,6 +588,32 @@ def resolve_release(candidate):
     }
 
 
+def mb_track_artists(artist, album, catalog_number=None):
+    """Per-track artist from MusicBrainz, for when Discogs has the tracklist
+    but none of its tracks carry their own artist - an occasional gap for a
+    less-documented compilation, not every one Discogs holds. Matched by
+    normalised title; returns {} if MusicBrainz has nothing usable either.
+
+    Deliberately narrow: only the artist name is trusted from MusicBrainz
+    here - see fill_tracklist for why its tracklist itself (which tracks
+    exist, their positions, their durations) isn't. A wrong or missing
+    artist name is a small miss; this is never used to supply a track
+    Discogs didn't already give, only to label one that's already there.
+    """
+    try:
+        hits = _mb_search(artist, album, catalog_number)
+    except MusicBrainzUnavailable:
+        return {}
+    if not hits or hits[0]["match"] == "weak":
+        return {}
+    try:
+        full = resolve_release(hits[0])
+    except MusicBrainzUnavailable:
+        return {}
+    return {_norm(t["title"]): t["artist"]
+           for t in full.get("tracks") or [] if t.get("artist") and t.get("title")}
+
+
 # ------------------------------------------------------------------ the pipeline
 
 def identify(path):
