@@ -422,6 +422,9 @@
      compilation, where the title cell already wraps for long transcribed
      titles - this follows the same rule rather than truncating. */
   td .t-artist{font-size:12px;color:var(--dim);margin-top:2px}
+  /* Not a credit off the pressing - just whoever the tempo above was
+     measured from. Italic and dimmer so it doesn't read as fact. */
+  td .t-artist.from-bpm{font-style:italic;color:var(--line2)}
   /* The songs mixed inside a megamix. Indented under their parent track,
      because that's one cue point on the record, not several. */
   td .t-part{font-size:12px;color:var(--dim);margin-top:3px;padding-left:10px;
@@ -745,13 +748,16 @@ async function loadBpm(d){
   // this pressing - but the songs mixed inside it are ordinary singles that
   // resolve fine. So the parts are looked up alongside the tracks holding
   // them, in the same request, and each gets its own cell to write into.
+  // ti is the track's own index, kept separate from the entry index: parts
+  // are interleaved after their parent, so the two stop matching as soon as
+  // any track has any. The title cell to write into is keyed by ti.
   const entries = [];
   tracks.forEach((t,i)=>{
     entries.push({title:t.title||'', artist:t.artist||null,
-                  id:'bpm'+i, row:t, isMix:!!t.is_mix});
+                  id:'bpm'+i, ti:i, row:t, isMix:!!t.is_mix});
     (t.parts||[]).forEach((p,j)=>entries.push({
       title:p.title||'', artist:p.artist||null,
-      id:`bpm${i}p${j}`, row:p, isPart:true}));
+      id:`bpm${i}p${j}`, ti:i, row:p, isPart:true}));
   });
 
   const run = ++bpmRun;
@@ -775,17 +781,36 @@ async function loadBpm(d){
         // the DOM - Save to library reads from here, and the cell is thrown
         // away the next time show() runs.
         e.row.bpm = f.bpm; e.row.key = f.key; e.row.bpm_source = f.source;
+        e.row.bpm_matched = f.matched || null;
       }
       if (!c) return;
       if (!f){ c.textContent = e.isMix ? 'mix' : '—'; return; }
       c.classList.add('got');
-      // A part's tempo is the original single's, not this mix's: a megamix
-      // pitches and re-edits what it samples. Say so rather than letting the
-      // number read as measured off the record in your hands.
-      c.title = e.isPart
+      // Name the recording these numbers were measured from. Without an
+      // artist to search on, a bare title matches whatever the catalogue
+      // ranks first - which for a 1977 song is regularly a modern re-edit at
+      // a different tempo. Saying which recording answered turns that from
+      // an invisible wrong number into a visible one.
+      const from = f.matched ? '\n' + f.matched : '';
+      c.title = (e.isPart
         ? 'original recording, via ' + (f.source||'?') + ' — the mix re-edits tempo'
-        : 'via ' + (f.source||'?');
+        : 'via ' + (f.source||'?')) + from;
       c.innerHTML = `${esc(String(f.bpm))} <span class="key">${esc(f.key||'')}</span>`;
+
+      // A track with no credit of its own: show who the tempo came from,
+      // as the tempo's source rather than as this pressing's performer -
+      // on a covers compilation those are different people, and the
+      // per-track artist search (loadTrackArtists) may still fill the real
+      // one in over the top of this.
+      if (!e.isPart && !e.row.artist && f.matched_artist){
+        const cell = document.getElementById('ttl' + e.ti);
+        if (cell && !cell.querySelector('.t-artist')){
+          cell.insertAdjacentHTML('beforeend',
+            `<div class="t-artist from-bpm" title="the BPM and key came from this `
+            + `recording — not confirmed as the performer on this pressing">`
+            + `${esc(f.matched_artist)}</div>`);
+        }
+      }
     });
   } catch(err){
     if (run !== bpmRun) return;
@@ -828,7 +853,15 @@ async function loadTrackArtists(d){
       // Save to library reads from here too, same as BPM.
       t.artist = artist;
       const cell = document.getElementById('ttl'+i);
-      if (cell && !cell.querySelector('.t-artist')){
+      if (!cell) return;
+      // BPM lookup may already have painted whoever its tempo came from
+      // here. This is the better answer of the two - it needs every
+      // exact-titled recording in the era to agree, where that one is just
+      // whatever the catalogue ranked first - so replace it rather than
+      // race it. Anything else already there came from Discogs and wins.
+      const weaker = cell.querySelector('.t-artist.from-bpm');
+      if (weaker) weaker.remove();
+      if (!cell.querySelector('.t-artist')){
         cell.insertAdjacentHTML('beforeend', `<div class="t-artist" title=`
           + `"found by title search - not confirmed on this specific pressing">`
           + `${esc(artist)}</div>`);

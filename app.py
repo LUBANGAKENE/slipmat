@@ -105,9 +105,16 @@ def api_bpm():
             return None
         if not feat:
             return None
+        # Which recording the numbers came from. matched_artist is newer than
+        # the cache file, so fall back to splitting the "Artist - Title"
+        # string rows written before it existed still carry.
+        matched = feat.get("matched")
         return {"bpm": feat["bpm"],
                 "key": feat.get("camelot") or feat.get("key"),
-                "source": feat["source"]}
+                "source": feat["source"],
+                "matched": matched,
+                "matched_artist": (feat.get("matched_artist")
+                                   or (matched.split(" - ")[0] if matched else None))}
 
     pairs = [(t, track_artists[i] if i < len(track_artists) else None)
             for i, t in enumerate(titles)]

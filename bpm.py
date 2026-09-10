@@ -368,9 +368,15 @@ def _from_recco(feat, track=None):
         "source": "reccobeats",
     }
     if track:
-        out["matched"] = "%s - %s" % (
-            ", ".join(a["name"] for a in track.get("artists", [])),
-            track.get("trackTitle"))
+        # Which recording these numbers actually describe. Worth carrying all
+        # the way to the screen: a title-only search (all a various-artists
+        # compilation can do for a track with no credit of its own) will
+        # happily match a modern re-edit of a 1977 song and report its tempo
+        # as if it were the pressing's. Naming the recording makes that
+        # visible instead of silent.
+        out["matched_artist"] = ", ".join(a["name"] for a in track.get("artists", [])) or None
+        out["matched"] = "%s - %s" % (out["matched_artist"] or "?",
+                                      track.get("trackTitle"))
     return out
 
 
