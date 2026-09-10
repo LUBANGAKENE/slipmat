@@ -39,6 +39,55 @@
     color:var(--ink)}
   header .sub{color:var(--dim);font-size:13px}
 
+  /* Global search: one box in the header, so it's on every page. Everything
+     it searches is already in memory (loadLibrary pulls albums with their
+     tracks in one go), so suggestions are instant with no round trip. */
+  .search{position:relative;flex:1 1 240px;max-width:400px;min-width:170px}
+  .search-box{display:flex;align-items:center;gap:8px;background:var(--panel);
+    border:1px solid var(--line2);border-radius:999px;padding:7px 12px}
+  .search-box:focus-within{border-color:var(--dim)}
+  .search-box svg{flex:none;width:15px;height:15px;stroke:var(--dim);fill:none;
+    stroke-width:1.8;stroke-linecap:round}
+  .search-box input{flex:1;min-width:0;background:transparent;border:0;outline:0;
+    color:var(--ink);font:inherit;font-size:13.5px}
+  .search-box input::placeholder{color:var(--dim)}
+  .search-clear{flex:none;background:transparent;border:0;color:var(--dim);
+    cursor:pointer;font-size:17px;line-height:1;padding:0 2px}
+  .search-clear:hover{color:var(--ink)}
+
+  .search-panel{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:70;
+    background:var(--panel);border:1px solid var(--line2);border-radius:10px;
+    padding:6px;max-height:min(62vh,430px);overflow:auto;
+    box-shadow:0 18px 40px rgba(0,0,0,.55)}
+  .search-row{display:flex;align-items:center;gap:10px;padding:7px 8px;
+    border-radius:7px;cursor:pointer}
+  /* .on is the keyboard cursor, so arrowing and hovering look identical. */
+  .search-row.on,.search-row:hover{background:var(--line)}
+  .search-row .art{flex:none;width:38px;height:38px;border-radius:5px;
+    overflow:hidden;background:var(--bg);color:var(--line2);font-size:15px;
+    display:flex;align-items:center;justify-content:center}
+  .search-row .art img{width:100%;height:100%;object-fit:cover;display:block}
+  .search-row.artist .art{border-radius:50%}
+  .search-row .txt{flex:1;min-width:0}
+  .search-row .r-title{font-size:13.5px;color:var(--ink);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .search-row .r-title b{font-weight:700}
+  .search-row .r-sub{font-size:12px;color:var(--dim);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .search-hint{display:flex;justify-content:space-between;gap:10px;padding:6px 9px 2px;
+    color:var(--line2);font-family:var(--font-mono);font-size:10.5px;
+    letter-spacing:.06em;text-transform:uppercase}
+  .search-empty{padding:14px 10px;color:var(--dim);font-size:13px;text-align:center}
+
+  /* Jumping to a track from search lands on a long list - a brief highlight
+     says which row was meant, since scrolling alone doesn't. */
+  @keyframes trkflash{from{background:var(--red-dim)}to{background:transparent}}
+  .trk.flash{animation:trkflash 1.6s ease-out}
+
+  @media(max-width:640px){
+    .search{order:5;flex-basis:100%;max-width:none}
+  }
+
   #auth{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px}
   #auth input{background:var(--bg);border:1px solid var(--line2);border-radius:6px;
     color:var(--ink);padding:6px 9px;font-size:13px;width:128px;font-family:var(--font-body)}
@@ -459,6 +508,17 @@
     <div class="brandmark" aria-hidden="true"></div>
     <h1>Slipmat</h1>
     <span class="sub">photograph a record &rarr; artist, album, tracklist</span>
+    <div class="search" id="search" hidden>
+      <div class="search-box">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="7" cy="7" r="5"></circle><path d="M11 11l4 4"></path>
+        </svg>
+        <input id="searchInput" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Search your library" aria-label="Search your library">
+        <button class="search-clear" id="searchClear" aria-label="Clear search" hidden>&times;</button>
+      </div>
+      <div class="search-panel" id="searchPanel" hidden></div>
+    </div>
     <div id="auth"></div>
   </header>
 
@@ -939,6 +999,213 @@ $('#library-grid').addEventListener('click', e => {
   }
 });
 
+// ------------------------------------------------------------------ search
+// Spotify's typeahead: one box in the header, suggestions as you type,
+// arrow keys to pick, Enter to open. It searches albums, the tracks inside
+// them, the artists derived from them, and playlists.
+//
+// Everything it reads is already in memory - loadLibrary() fetches albums
+// with their tracks in a single query - so there's no request per keystroke
+// and no debounce to hide one. It reads those globals live rather than
+// building its own index, so a record saved mid-session is searchable as
+// soon as the library reloads, with nothing to invalidate.
+
+let searchResults = [];
+let searchActive = -1;      // keyboard cursor into searchResults
+let searchLoad = null;
+
+// Search sits in the header, so it's reachable from Scan - where the
+// library may never have been fetched. First focus pulls it in the
+// background and re-runs whatever has been typed by the time it lands.
+function ensureSearchData(){
+  if (!searchLoad && currentUser){
+    searchLoad = Promise.all([loadLibrary(), loadPlaylistsIfNeeded()])
+      .then(() => { if ($('#searchInput').value.trim()) runSearch(); })
+      .catch(err => console.warn('search: library load failed —', err.message));
+  }
+  return searchLoad;
+}
+
+// Prefix beats substring, and an entity beats a song that matches equally
+// well - the same ordering Spotify's suggestions use.
+function searchRank(text, q){
+  const i = (text || '').toLowerCase().indexOf(q);
+  return i < 0 ? null : (i === 0 ? 0 : 1);
+}
+
+function searchHighlight(text, q){
+  const t = text || '';
+  const i = t.toLowerCase().indexOf(q);
+  if (i < 0) return esc(t);
+  return esc(t.slice(0, i)) + '<b>' + esc(t.slice(i, i + q.length))
+       + '</b>' + esc(t.slice(i + q.length));
+}
+
+function runSearch(){
+  const q = $('#searchInput').value.trim().toLowerCase();
+  $('#searchClear').hidden = !q;
+  if (!q){ closeSearch(); return; }
+
+  const hits = [];
+  const seenArtist = new Set();
+
+  for (const a of libraryAlbums){
+    const albumRank = searchRank(a.album, q);
+    if (albumRank !== null){
+      hits.push({ kind:'album', rank:albumRank, id:a.id, q,
+                  title:a.album || 'Unknown album',
+                  sub:'Album • ' + (a.artist || 'Unknown artist'), cover:a.cover_url });
+    }
+    // One row per artist, not one per album they appear on.
+    const key = (a.artist || '').toLowerCase();
+    if (a.artist && !seenArtist.has(key)){
+      const artistRank = searchRank(a.artist, q);
+      if (artistRank !== null){
+        seenArtist.add(key);
+        hits.push({ kind:'artist', rank:artistRank, artist:a.artist, q,
+                    title:a.artist, sub:'Artist', cover:a.cover_url });
+      }
+    }
+    for (const t of (a.tracks || [])){
+      const trackRank = searchRank(t.title, q);
+      if (trackRank !== null){
+        hits.push({ kind:'track', rank:trackRank + 0.5, id:t.id, q,
+                    title:t.title || '?',
+                    sub:'Song • ' + (t.artist || a.artist || 'Unknown artist'),
+                    cover:a.cover_url });
+      }
+    }
+  }
+
+  for (const p of playlistRows){
+    const plRank = searchRank(p.name, q);
+    if (plRank !== null){
+      hits.push({ kind:'playlist', rank:plRank, id:p.id, q, title:p.name,
+                  sub:p.kind === 'folder' ? 'Folder' : 'Playlist', cover:null });
+    }
+  }
+
+  hits.sort((x, y) => x.rank - y.rank || x.title.localeCompare(y.title));
+  searchResults = hits.slice(0, 10);
+  searchActive = searchResults.length ? 0 : -1;
+  renderSearchPanel();
+}
+
+function renderSearchPanel(){
+  const panel = $('#searchPanel');
+  panel.hidden = false;
+
+  if (!searchResults.length){
+    panel.innerHTML = `<div class="search-empty">Nothing in your library matches that.</div>`;
+    return;
+  }
+  panel.innerHTML =
+    `<div class="search-hint"><span>&uarr;&darr; navigate</span><span>&crarr; open</span></div>`
+    + searchResults.map((r, i) => `
+      <div class="search-row ${r.kind}${i === searchActive ? ' on' : ''}" data-i="${i}">
+        <div class="art">${r.kind === 'playlist' ? '&#9834;' : coverHtml(r.cover)}</div>
+        <div class="txt">
+          <div class="r-title">${searchHighlight(r.title, r.q)}</div>
+          <div class="r-sub">${esc(r.sub)}</div>
+        </div>
+      </div>`).join('');
+}
+
+function moveSearchCursor(step){
+  if (!searchResults.length) return;
+  searchActive = (searchActive + step + searchResults.length) % searchResults.length;
+  const rows = $$('#searchPanel .search-row');
+  rows.forEach((el, i) => el.classList.toggle('on', i === searchActive));
+  rows[searchActive]?.scrollIntoView({ block: 'nearest' });
+}
+
+function closeSearch(alsoClear){
+  const panel = $('#searchPanel');
+  panel.hidden = true;
+  panel.innerHTML = '';
+  searchResults = [];
+  searchActive = -1;
+  if (alsoClear){
+    $('#searchInput').value = '';
+    $('#searchClear').hidden = true;
+  }
+}
+
+function openSearchResult(r){
+  if (!r) return;
+  closeSearch(true);
+  $('#searchInput').blur();
+  showTab('library');
+
+  if (r.kind === 'album'){
+    showLibraryView('list');
+    document.getElementById('album-' + r.id)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } else if (r.kind === 'artist'){
+    libraryArtistFilter = r.artist;
+    showLibraryView('albums');
+
+  } else if (r.kind === 'track'){
+    // A playlist bubble filter would hide the very track just picked.
+    trackFilterPlaylist = null;
+    showLibraryView('tracks');
+    // renderTracksPage is async (it may resolve playlist membership first),
+    // so the row doesn't exist yet on this tick - wait a frame, then flash
+    // it so the right line stands out in a long list.
+    setTimeout(() => {
+      const row = document.querySelector(`.trk[data-track-id="${CSS.escape(r.id)}"]`);
+      if (!row) return;
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.remove('flash');
+      void row.offsetWidth;              // restart the animation if it's replayed
+      row.classList.add('flash');
+    }, 80);
+
+  } else if (r.kind === 'playlist'){
+    showLibraryView('playlists');
+    selectPlaylist(r.id);
+  }
+}
+
+$('#searchInput').addEventListener('focus', ensureSearchData);
+$('#searchInput').addEventListener('input', runSearch);
+
+$('#searchInput').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown'){ e.preventDefault(); moveSearchCursor(1); }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); moveSearchCursor(-1); }
+  else if (e.key === 'Enter'){ e.preventDefault(); openSearchResult(searchResults[searchActive]); }
+  else if (e.key === 'Escape'){
+    // First Escape drops the suggestions, a second clears the box - so it
+    // never wipes what you typed when you only meant to see the page again.
+    if (!$('#searchPanel').hidden) closeSearch(); else closeSearch(true);
+  }
+});
+
+$('#searchPanel').addEventListener('click', e => {
+  const row = e.target.closest('.search-row[data-i]');
+  if (row) openSearchResult(searchResults[Number(row.dataset.i)]);
+});
+
+$('#searchClear').addEventListener('click', () => {
+  closeSearch(true);
+  $('#searchInput').focus();
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#search')) closeSearch();
+});
+
+// Ctrl/Cmd+K from anywhere, the shortcut every search box has trained
+// people to reach for.
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && !$('#search').hidden){
+    e.preventDefault();
+    $('#searchInput').focus();
+    $('#searchInput').select();
+  }
+});
+
 function refreshSaveRow(){
   const row = $('#saveRow');
   const visible = !!(currentUser && lastRecord);
@@ -960,6 +1227,8 @@ function renderAuth(){
     el.innerHTML = `<button class="profile-btn" id="profileBtn"
       title="${esc(currentUser.email)}" aria-label="Profile">${initial}</button>`;
     $('#tabs').style.display = 'flex';
+    // There's a library to search only once someone is signed in to own one.
+    $('#search').hidden = false;
   } else {
     el.innerHTML = `
       <input id="authEmail" type="email" placeholder="email" autocomplete="email">
@@ -968,6 +1237,12 @@ function renderAuth(){
       <button class="ghost" id="signUp">Sign up</button>
       <span class="err" id="authErr"></span>`;
     $('#tabs').style.display = 'none';
+    $('#search').hidden = true;
+    // Signing out invalidates both what was loaded and the promise that says
+    // it was - the next signed-in session must fetch its own library.
+    closeSearch(true);
+    searchLoad = null;
+    libraryAlbums = [];
     showTab('scan');
   }
   refreshSaveRow();
