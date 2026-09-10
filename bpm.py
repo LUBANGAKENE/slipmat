@@ -444,6 +444,49 @@ def lookup(artist, title, allow_network=True):
     return found
 
 
+def spotify_id_for(artist, title):
+    """The Spotify track id for a recording, for the preview button.
+
+    Usually just what lookup() already resolved. The second half is for rows
+    cached before spotify_id was a field: hits are cached permanently, so
+    lookup() would hand back the same id-less payload forever and those
+    tracks would never get a preview button at all. Re-resolve the track
+    once and write the id back alongside the tempo already stored.
+    """
+    if not title:
+        return None
+
+    cache, spotify, recco = _clients()
+    feat, hit = cache.get(artist, title)
+
+    if not hit:
+        # Never looked up. The ordinary path caches the tempo and key we'd
+        # want anyway, so take it rather than resolving the id on its own.
+        return (lookup(artist, title) or {}).get("spotify_id")
+    if not feat:
+        return None                     # a cached miss, still inside its TTL
+    if feat.get("spotify_id"):
+        return feat["spotify_id"]
+
+    try:
+        track = None
+        if spotify.configured:
+            sp = spotify.find(artist, title)
+            if sp:
+                track = recco.by_spotify_id(sp["id"])
+        if track is None:
+            track = recco.by_search(title, artist)
+    except requests.RequestException as exc:
+        print("  bpm: network error (%s) - id not resolved" % exc, file=sys.stderr)
+        return None
+
+    sid = _spotify_id(track)
+    if sid:
+        feat["spotify_id"] = sid
+        cache.put(artist, title, feat)
+    return sid
+
+
 def annotate(record, allow_network=True):
     """Fill in every track of a Slipmat record in place, and return it.
 

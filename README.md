@@ -36,7 +36,12 @@ button that streams Spotify's 30-second preview of it — the same recording the
 tempo was read from, so it's a quick ear check that the number belongs to the
 song on your platter. `/api/preview` pulls the clip URL from Spotify's embed
 player (its API stopped handing out `preview_url` for newer apps); a track
-streaming never carried simply has no button.
+streaming never carried greys its button out on the first click.
+
+Nothing about the clip is stored — not the audio, not the URL. It streams live
+from Spotify's CDN each time. A saved track keeps only the 22-character track
+id, and even that is an optimisation: without it the button resolves the
+recording from artist and title instead.
 
 ```bash
 python bpm.py "Mr. Fingers" "Mystery of Love"
@@ -237,11 +242,11 @@ order, in the SQL Editor — each is a no-op if you're already caught up:
   the note (dim, captioned) saying which recording a tempo came from when the
   track has no confirmed artist of its own.
 - [`supabase/migrations/0008_track_spotify_id.sql`](supabase/migrations/0008_track_spotify_id.sql)
-  — `spotify_id` on `tracks`, the recording the BPM matched. Without it saving
-  still works, the 30-second preview button just doesn't survive onto the
-  saved album (it still works on the scan page). Tracks already in the cache
-  before this shipped get their id — and their button — the next time they're
-  looked up.
+  — `spotify_id` on `tracks`, the recording the BPM matched. Genuinely
+  optional: it makes the 30-second preview button fast, not possible. Without
+  it the button falls back to resolving from artist and title, which is a few
+  milliseconds off the local BPM cache and a Spotify search hop when that
+  cache is cold.
 
 ---
 

@@ -696,9 +696,18 @@ const previewAudio = new Audio();
 previewAudio.preload = 'none';
 let previewBtn = null;                 // the button currently wired to the audio
 
-function playBtnHtml(spotifyId){
-  return spotifyId
-    ? `<button class="play-btn" data-spotify-id="${esc(spotifyId)}" draggable="false"
+// A row that knows its Spotify id plays straight from it. One that doesn't -
+// saved before migration 0008, or from a project that never ran it - carries
+// its artist and title instead and lets the server resolve the id, off the
+// same permanent cache the BPM lookup already filled. Slower on the first
+// click, but it means the button works on albums saved long before any of
+// this existed. No title, no button: there'd be nothing to search on.
+function playBtnHtml(spotifyId, artist, title){
+  const key = spotifyId
+    ? ` data-spotify-id="${esc(spotifyId)}"`
+    : (title ? ` data-artist="${esc(artist || '')}" data-title="${esc(title)}"` : '');
+  return key
+    ? `<button class="play-btn"${key} draggable="false"
          title="Preview" aria-label="Play a 30-second preview">&#9654;</button>`
     : '';
 }
@@ -716,15 +725,18 @@ previewAudio.addEventListener('ended', () => previewStop());
 previewAudio.addEventListener('error', () => previewStop());
 
 async function togglePreview(btn){
-  const id = btn.dataset.spotifyId;
-  if (!id || btn.classList.contains('gone')) return;
+  const { spotifyId, artist, title } = btn.dataset;
+  if ((!spotifyId && !title) || btn.classList.contains('gone')) return;
   if (btn === previewBtn){ previewStop(); return; }   // tapping the playing one stops it
 
   previewStop();
   previewBtn = btn;
   btn.classList.add('loading');
   try{
-    const r = await fetch('/api/preview/' + encodeURIComponent(id));
+    const at = new URLSearchParams({ artist: artist || '', title: title || '' });
+    const r = await fetch(spotifyId
+      ? '/api/preview/' + encodeURIComponent(spotifyId)
+      : '/api/preview?' + at);
     if (previewBtn !== btn) return;                   // clicked elsewhere while resolving
     if (r.status === 404){
       btn.classList.remove('loading');
@@ -1635,7 +1647,7 @@ function trackRowHtml(t, opts){
   return `
     <div class="trk" draggable="${drag}" data-track-id="${esc(t.id || '')}"${ptAttr}>
       <div class="art">${art}</div>
-      ${playBtnHtml(t.spotify_id)}
+      ${playBtnHtml(t.spotify_id, t.artist, t.title)}
       <div class="txt">
         <div class="t-title">${esc(t.title || '?')}</div>
         <div class="t-artist">${esc(t.artist || 'Unknown artist')}</div>
@@ -2648,7 +2660,7 @@ function renderLibraryAlbum(a){
   // sit nested under it with the original tempos looked up when it was
   // scanned. A saved track's key column is key_camelot; a part's is key.
   const savedParts = t => (t.parts || []).map(p =>
-    `<div class="t-part">${playBtnHtml(p.spotify_id)}<span>${esc(p.position||'')}</span>${esc(p.title||'')}${
+    `<div class="t-part">${playBtnHtml(p.spotify_id, p.artist || a.artist, p.title)}<span>${esc(p.position||'')}</span>${esc(p.title||'')}${
        p.duration ? ` <span>${esc(p.duration)}</span>` : ''
      }${p.bpm != null
        ? `<span class="p-bpm got" title="original recording — the mix re-edits tempo">${
@@ -2666,7 +2678,7 @@ function renderLibraryAlbum(a){
         const matchArtist = !t.artist ? bpmMatchArtist(t) : null;
         return `<tr>
         <td class="pos">${esc(t.position||'')}</td>
-        <td>${playBtnHtml(t.spotify_id)}${esc(t.title||'?')}${t.is_mix
+        <td>${playBtnHtml(t.spotify_id, t.artist || a.artist, t.title)}${esc(t.title||'?')}${t.is_mix
             ? ' <span class="mix-tag">mix</span>' : ''}${t.artist
             ? `<div class="t-artist">${esc(t.artist)}</div>`
             : matchArtist

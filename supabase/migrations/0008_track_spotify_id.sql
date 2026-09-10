@@ -1,21 +1,31 @@
--- Run this in the SQL Editor if your project's tracks table already exists
--- (schema.sql now includes this column for anyone provisioning fresh).
+-- Optional. Run it in the SQL Editor if your project's tracks table already
+-- exists (schema.sql now includes this column for anyone provisioning fresh).
 --
 -- spotify_id is the 22-character Spotify track id for whichever recording
 -- the BPM/key lookup matched - the same recording bpm_matched names in
 -- words. The scan already works it out (it's how the tempo was found at
 -- all), and it's what the tracklist's 30-second preview button plays: the
 -- app hands the id to /api/preview, which resolves a p.scdn.co clip URL
--- from Spotify's embed player. Without this column the button worked on the
--- scan page and then vanished on save, the same way bpm_matched used to.
+-- from Spotify's embed player.
+--
+-- No audio and no URL is stored here - only the id. The clip itself is
+-- always streamed live from Spotify's CDN.
+--
+-- This column makes the preview button fast, not possible. Without it the
+-- button still works: it sends artist and title to /api/preview instead,
+-- and the server resolves the id off the same permanent cache that answered
+-- the BPM lookup in the first place - a few milliseconds when that cache is
+-- warm, which on a machine that scanned the record it always is. Where the
+-- column earns its keep is a cold cache (a serverless deploy wipes
+-- bpm_cache.sqlite between cold starts), where resolving from scratch means
+-- a Spotify search hop per click and counts against the daily quota.
 --
 -- Not a claim about this pressing: a title-only match on a various-artists
 -- compilation can point at a modern re-edit, exactly as bpm_matched can.
 -- It's "where the preview comes from", nothing more, and the row already
 -- says so wherever bpm_matched is shown.
 --
--- Existing rows are unaffected: spotify_id is null, so the preview button
--- is simply absent for tracks saved before this ran. Re-scanning the album
--- and saving again fills it in.
+-- Existing rows are unaffected: spotify_id is null, and those tracks fall
+-- back to the artist/title path like any un-migrated project would.
 
 alter table public.tracks add column if not exists spotify_id text;

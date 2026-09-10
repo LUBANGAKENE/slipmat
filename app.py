@@ -182,10 +182,11 @@ _SPOTIFY_ID = re.compile(r"^[A-Za-z0-9]{22}$")
 _PREVIEW_IN_PAGE = re.compile(r'"audioPreview"\s*:\s*\{\s*"url"\s*:\s*"([^"]+)"')
 
 
+@app.get("/api/preview")
 @app.get("/api/preview/<track_id>")
-def api_preview(track_id):
-    """A 30-second preview URL for a Spotify track id, for the little play
-    button on a tracklist row.
+def api_preview(track_id=None):
+    """A 30-second preview URL for a track, for the little play button on a
+    tracklist row.
 
     Spotify stopped returning preview_url from its API for apps registered
     after late 2024, but its embed player still carries one. The browser
@@ -193,7 +194,30 @@ def api_preview(track_id):
     it here and hand back just the mp3 URL - which p.scdn.co *does* serve to
     an <audio> element from any origin. Cached per process so replaying a row
     is instant.
+
+    Two ways in. A saved track that has its spotify_id passes it in the path
+    and skips straight to the clip. One that doesn't - a row saved before
+    migration 0008, or a project that never ran it - passes ?artist=&title=
+    instead and we resolve the id here. That second path is the reason 0008
+    is optional: the column makes the button fast, not possible.
     """
+    if track_id is None:
+        title = (request.args.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "need a track id, or a title to resolve one"}), 400
+        # Same guard as /api/bpm: "Various Artists" is worse than no artist,
+        # since it constrains the search to a name no catalogue carries.
+        artist = (request.args.get("artist") or "").strip() or None
+        if identify.is_generic_artist(artist):
+            artist = None
+        try:
+            track_id = bpm.spotify_id_for(artist, title)
+        except Exception:
+            traceback.print_exc()
+            track_id = None
+        if not track_id:
+            return jsonify({"error": "no preview for this track"}), 404
+
     if not _SPOTIFY_ID.match(track_id or ""):
         return jsonify({"error": "bad track id"}), 400
 
