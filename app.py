@@ -9,11 +9,16 @@ sleeve directly with the camera - which is how you'd actually use this next
 to the decks.
 """
 
+import json
 import os
+import re
 import socket
+import threading
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 
+import requests
 from flask import Flask, jsonify, render_template, request
 
 import bpm
@@ -114,7 +119,8 @@ def api_bpm():
                 "source": feat["source"],
                 "matched": matched,
                 "matched_artist": (feat.get("matched_artist")
-                                   or (matched.split(" - ")[0] if matched else None))}
+                                   or (matched.split(" - ")[0] if matched else None)),
+                "spotify_id": feat.get("spotify_id")}
 
     pairs = [(t, track_artists[i] if i < len(track_artists) else None)
             for i, t in enumerate(titles)]
@@ -161,6 +167,65 @@ def api_track_artists():
 
     results = [one(t) for t in titles]
     return jsonify({"results": results})
+
+
+# --------------------------------------------------------------- track preview
+
+# Spotify id -> (preview url or None, fetched_at). A None is cached too, with a
+# shorter life, so a track that genuinely has no preview isn't refetched on
+# every click - but retried within the hour in case one appears.
+_PREVIEW = {}
+_PREVIEW_LOCK = threading.Lock()
+_PREVIEW_HIT_TTL = 24 * 3600
+_PREVIEW_MISS_TTL = 3600
+_SPOTIFY_ID = re.compile(r"^[A-Za-z0-9]{22}$")
+_PREVIEW_IN_PAGE = re.compile(r'"audioPreview"\s*:\s*\{\s*"url"\s*:\s*"([^"]+)"')
+
+
+@app.get("/api/preview/<track_id>")
+def api_preview(track_id):
+    """A 30-second preview URL for a Spotify track id, for the little play
+    button on a tracklist row.
+
+    Spotify stopped returning preview_url from its API for apps registered
+    after late 2024, but its embed player still carries one. The browser
+    can't read that page itself (cross-origin, no CORS header), so we fetch
+    it here and hand back just the mp3 URL - which p.scdn.co *does* serve to
+    an <audio> element from any origin. Cached per process so replaying a row
+    is instant.
+    """
+    if not _SPOTIFY_ID.match(track_id or ""):
+        return jsonify({"error": "bad track id"}), 400
+
+    now = time.time()
+    with _PREVIEW_LOCK:
+        cached = _PREVIEW.get(track_id)
+    if cached:
+        url, at = cached
+        ttl = _PREVIEW_HIT_TTL if url else _PREVIEW_MISS_TTL
+        if now - at < ttl:
+            return (jsonify({"url": url}) if url
+                    else (jsonify({"error": "no preview for this track"}), 404))
+
+    url = None
+    try:
+        r = requests.get("https://open.spotify.com/embed/track/" + track_id,
+                         headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        if r.ok:
+            m = _PREVIEW_IN_PAGE.search(r.text)
+            if m:
+                # The capture is a JSON string body (escaped "\/", "-", …);
+                # decode it as one rather than hand the browser a mangled URL.
+                url = json.loads('"%s"' % m.group(1))
+    except requests.RequestException:
+        traceback.print_exc()
+        # A network blip is not "no preview" - don't poison the cache with it.
+        return jsonify({"error": "could not reach Spotify"}), 502
+
+    with _PREVIEW_LOCK:
+        _PREVIEW[track_id] = (url, now)
+    return (jsonify({"url": url}) if url
+            else (jsonify({"error": "no preview for this track"}), 404))
 
 
 def lan_ip():

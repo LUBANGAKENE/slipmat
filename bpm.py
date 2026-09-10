@@ -27,6 +27,7 @@ import base64
 import contextlib
 import json
 import os
+import re
 import sqlite3
 import sys
 import tempfile
@@ -343,6 +344,18 @@ def _pick_recco(items, artist, title):
     return None
 
 
+def _spotify_id(track):
+    """The Spotify track id out of a ReccoBeats track object's href.
+
+    Both lookup paths populate href ("https://open.spotify.com/track/<id>"),
+    so the id is there whether the lookup went through the Spotify search hop
+    or fell back to ReccoBeats' own title search. Carried to the screen for
+    the tracklist's 30-second preview button - see app.py's /api/preview.
+    """
+    m = re.search(r"/track/([A-Za-z0-9]{22})", (track or {}).get("href") or "")
+    return m.group(1) if m else None
+
+
 def _from_recco(feat, track=None):
     """ReccoBeats payload -> the shape analyze.normalise() produces."""
     if not feat or feat.get("tempo") is None:
@@ -377,6 +390,7 @@ def _from_recco(feat, track=None):
         out["matched_artist"] = ", ".join(a["name"] for a in track.get("artists", [])) or None
         out["matched"] = "%s - %s" % (out["matched_artist"] or "?",
                                       track.get("trackTitle"))
+        out["spotify_id"] = _spotify_id(track)
     return out
 
 

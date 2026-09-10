@@ -64,6 +64,11 @@ create policy "albums: owner full access" on public.albums
 -- from artist on purpose: artist is a credit this app is willing to assert,
 -- bpm_matched is only ever "this is where the tempo number came from" and
 -- is rendered accordingly (dimmer, captioned, never as fact).
+--
+-- spotify_id is the Spotify track id for that same matched recording. It's
+-- what the tracklist's 30-second preview button plays (via /api/preview,
+-- which turns it into a p.scdn.co clip URL), and like bpm_matched it names
+-- a recording, not a pressing.
 create table public.tracks (
   id           uuid primary key default gen_random_uuid(),
   album_id     uuid not null references public.albums(id) on delete cascade,
@@ -77,6 +82,7 @@ create table public.tracks (
   key_camelot  text,
   bpm_source   text,
   bpm_matched  text,
+  spotify_id   text,
   is_mix       boolean not null default false,
   parts        jsonb
 );

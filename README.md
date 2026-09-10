@@ -31,6 +31,13 @@ and then ReccoBeats — which still serves the audio-features schema Spotify
 retired — and [`analyze.py`](analyze.py) turns that into Camelot notation,
 half/double-time candidates and pitch-fader percentages.
 
+Where that lookup lands on a specific recording, the track gets a small play
+button that streams Spotify's 30-second preview of it — the same recording the
+tempo was read from, so it's a quick ear check that the number belongs to the
+song on your platter. `/api/preview` pulls the clip URL from Spotify's embed
+player (its API stopped handing out `preview_url` for newer apps); a track
+streaming never carried simply has no button.
+
 ```bash
 python bpm.py "Mr. Fingers" "Mystery of Love"
 python bpm.py --record scan.json      # annotate a whole tracklist
@@ -113,9 +120,11 @@ app**, any name and description, any redirect URI (`http://localhost:5000` is
 fine), tick the Web API box. The client ID and secret are on the app's settings
 page. No review, no user login, no cost.
 
-Nothing here plays audio or touches your account: Spotify is used purely as a
-search engine, to turn "artist + title read off a sleeve" into a track ID that
-ReccoBeats can answer. Then check it:
+These credentials never touch your account: Spotify is used purely as a search
+engine, to turn "artist + title read off a sleeve" into a track ID that
+ReccoBeats can answer. (The tracklist's 30-second preview button fetches a
+public clip from Spotify's embed player — no credentials, no login, and it
+works with or without the two keys above.) Then check it:
 
 ```bash
 python bpm.py --check
@@ -223,6 +232,16 @@ order, in the SQL Editor — each is a no-op if you're already caught up:
   it just drops those three (the save button says so, and the console names
   the migration). It's what lets a saved compilation keep each song's own
   performer, and a saved megamix keep the songs inside it with their tempos.
+- [`supabase/migrations/0007_bpm_matched.sql`](supabase/migrations/0007_bpm_matched.sql)
+  — `bpm_matched` on `tracks`. Without it saving still works, it just drops
+  the note (dim, captioned) saying which recording a tempo came from when the
+  track has no confirmed artist of its own.
+- [`supabase/migrations/0008_track_spotify_id.sql`](supabase/migrations/0008_track_spotify_id.sql)
+  — `spotify_id` on `tracks`, the recording the BPM matched. Without it saving
+  still works, the 30-second preview button just doesn't survive onto the
+  saved album (it still works on the scan page). Tracks already in the cache
+  before this shipped get their id — and their button — the next time they're
+  looked up.
 
 ---
 
@@ -309,7 +328,7 @@ In the live path:
 
 | File | Role |
 |---|---|
-| `app.py` | Flask server — page, `/api/scan`, `/api/bpm` |
+| `app.py` | Flask server — page, `/api/scan`, `/api/bpm`, `/api/preview` |
 | `vinyl.py` | The engine — vision call, prompt, fallback orchestration |
 | `identify.py` | Discogs and MusicBrainz search, fuzzy matching, vinyl-preference ranking |
 | `bpm.py` | BPM/key resolution — cache → Spotify search → ReccoBeats |

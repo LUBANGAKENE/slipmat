@@ -489,6 +489,22 @@
     text-transform:uppercase;color:var(--dim);border:1px solid var(--line2);
     border-radius:3px;padding:1px 5px;vertical-align:2px}
 
+  /* The 30-second preview button on a tracklist row. Same control in the scan
+     table, the saved-album table and the flexbox .trk rows - hence not scoped
+     to any one of them. Teal at rest (it's a "found it" affordance, like the
+     key), red while playing, grey and inert once we've learned the track has
+     no preview to give. */
+  .play-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;
+    width:19px;height:19px;padding:0;margin-right:7px;border:0;border-radius:50%;
+    background:var(--teal);color:var(--bg);font-size:8px;line-height:1;cursor:pointer;
+    vertical-align:2px;transition:transform .1s,background .15s,opacity .15s}
+  .play-btn:hover{transform:scale(1.14)}
+  .play-btn.loading{opacity:.55;cursor:default}
+  .play-btn.loading:hover,.play-btn.gone:hover{transform:none}
+  .play-btn.playing{background:var(--red);color:#fff}
+  .play-btn.gone{background:var(--line2);color:var(--dim);cursor:default}
+  .trk .play-btn{margin-right:0}
+
   .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
     margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
     color:var(--dim);font-family:var(--font-mono);font-size:11px;letter-spacing:.04em}
@@ -669,6 +685,77 @@ let currentUser = null;
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+// ---------------------------------------------- 30-second track previews
+// The play button on a tracklist row. Every row that has a Spotify id for
+// the recording its BPM came from gets one; a delegated click on document
+// (capture phase, so it beats any row-level handler) drives all of them,
+// scan view and library alike. There is one <audio> for the whole page -
+// starting a preview always stops whatever was playing - and /api/preview
+// turns the id into a playable p.scdn.co clip URL on demand.
+const previewAudio = new Audio();
+previewAudio.preload = 'none';
+let previewBtn = null;                 // the button currently wired to the audio
+
+function playBtnHtml(spotifyId){
+  return spotifyId
+    ? `<button class="play-btn" data-spotify-id="${esc(spotifyId)}" draggable="false"
+         title="Preview" aria-label="Play a 30-second preview">&#9654;</button>`
+    : '';
+}
+
+function previewStop(finalClass){
+  previewAudio.pause();
+  if (previewBtn){
+    previewBtn.classList.remove('loading', 'playing');
+    if (finalClass) previewBtn.classList.add(finalClass);
+    previewBtn.innerHTML = '&#9654;';
+  }
+  previewBtn = null;
+}
+previewAudio.addEventListener('ended', () => previewStop());
+previewAudio.addEventListener('error', () => previewStop());
+
+async function togglePreview(btn){
+  const id = btn.dataset.spotifyId;
+  if (!id || btn.classList.contains('gone')) return;
+  if (btn === previewBtn){ previewStop(); return; }   // tapping the playing one stops it
+
+  previewStop();
+  previewBtn = btn;
+  btn.classList.add('loading');
+  try{
+    const r = await fetch('/api/preview/' + encodeURIComponent(id));
+    if (previewBtn !== btn) return;                   // clicked elsewhere while resolving
+    if (r.status === 404){
+      btn.classList.remove('loading');
+      btn.classList.add('gone');
+      btn.title = 'No preview available for this track';
+      previewBtn = null;
+      return;
+    }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const { url } = await r.json();
+    if (!url) throw new Error('no url');
+    previewAudio.src = url;
+    await previewAudio.play();
+    if (previewBtn !== btn){ previewAudio.pause(); return; }
+    btn.classList.remove('loading');
+    btn.classList.add('playing');
+    btn.innerHTML = '&#9208;';
+  } catch(err){
+    console.warn('preview failed:', err.message);
+    if (previewBtn === btn) previewStop();
+  }
+}
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.play-btn');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  togglePreview(btn);
+}, true);
+
 function render(){
   thumbs.innerHTML = images.map((src,i)=>
     `<div class="thumb"><img src="${src}"><button data-i="${i}">&times;</button></div>`).join('');
@@ -842,6 +929,7 @@ async function loadBpm(d){
         // away the next time show() runs.
         e.row.bpm = f.bpm; e.row.key = f.key; e.row.bpm_source = f.source;
         e.row.bpm_matched = f.matched || null;
+        e.row.spotify_id = f.spotify_id || null;
       }
       if (!c) return;
       if (!f){ c.textContent = e.isMix ? 'mix' : '—'; return; }
@@ -856,6 +944,16 @@ async function loadBpm(d){
         ? 'original recording, via ' + (f.source||'?') + ' — the mix re-edits tempo'
         : 'via ' + (f.source||'?')) + from;
       c.innerHTML = `${esc(String(f.bpm))} <span class="key">${esc(f.key||'')}</span>`;
+
+      // A play button for the recording the tempo came from, at the head of
+      // the title cell. Parts get one too - the songs inside a mix are
+      // ordinary singles with ordinary previews - prepended to the part row.
+      if (f.spotify_id){
+        const target = e.isPart ? c.closest('.t-part')
+                                : document.getElementById('ttl' + e.ti);
+        if (target && !target.querySelector('.play-btn'))
+          target.insertAdjacentHTML('afterbegin', playBtnHtml(f.spotify_id));
+      }
 
       // A track with no credit of its own: show who the tempo came from,
       // as the tempo's source rather than as this pressing's performer -
@@ -1318,11 +1416,13 @@ async function saveToLibrary(d){
       title: t.title || '?', artist: t.artist || null, duration: t.duration || null,
       bpm: t.bpm ?? null, key_camelot: t.key ?? null, bpm_source: t.bpm_source ?? null,
       bpm_matched: t.artist ? null : (t.bpm_matched || null),
+      spotify_id: t.spotify_id || null,
       is_mix: !!t.is_mix,
       parts: (t.parts || []).length ? t.parts.map(p => ({
         position: p.position || null, title: p.title || null,
         artist: p.artist || null, duration: p.duration || null,
         bpm: p.bpm ?? null, key: p.key ?? null, bpm_source: p.bpm_source ?? null,
+        spotify_id: p.spotify_id || null,
       })) : null,
     }));
     let degraded = false;
@@ -1330,14 +1430,14 @@ async function saveToLibrary(d){
       let { error: terr } = await supabaseClient.from('tracks').insert(trackRows);
 
       // A project that hasn't run every tracks migration has no artist/
-      // is_mix/parts/bpm_matched columns, and Postgres rejects the whole
-      // insert (42703) rather than ignoring the ones it doesn't have -
+      // is_mix/parts/bpm_matched/spotify_id columns, and Postgres rejects the
+      // whole insert (42703) rather than ignoring the ones it doesn't have -
       // which would lose the entire tracklist over a handful of optional
       // fields. Drop them and save what the schema on hand does hold.
       if (terr && (terr.code === '42703' || /column .* does not exist/i.test(terr.message||''))){
-        console.warn('tracks insert: schema predates migration 0006/0007, saving '
-                     + 'without per-track artist / mix parts / bpm_matched —', terr.message);
-        const legacy = trackRows.map(({ artist, is_mix, parts, bpm_matched, ...keep }) => keep);
+        console.warn('tracks insert: schema predates migration 0006/0007/0008, saving '
+                     + 'without per-track artist / mix parts / bpm_matched / preview —', terr.message);
+        const legacy = trackRows.map(({ artist, is_mix, parts, bpm_matched, spotify_id, ...keep }) => keep);
         ({ error: terr } = await supabaseClient.from('tracks').insert(legacy));
         degraded = !terr;
       }
@@ -1345,7 +1445,7 @@ async function saveToLibrary(d){
     }
 
     st.className = 'status ok';
-    st.textContent = degraded ? 'Saved (run migrations 0006/0007 to keep mix/BPM details).' : 'Saved.';
+    st.textContent = degraded ? 'Saved (run migrations 0006/0007/0008 to keep mix/BPM/preview details).' : 'Saved.';
     btn.textContent = 'Saved';
   } catch(err){
     st.className = 'status err';
@@ -1535,6 +1635,7 @@ function trackRowHtml(t, opts){
   return `
     <div class="trk" draggable="${drag}" data-track-id="${esc(t.id || '')}"${ptAttr}>
       <div class="art">${art}</div>
+      ${playBtnHtml(t.spotify_id)}
       <div class="txt">
         <div class="t-title">${esc(t.title || '?')}</div>
         <div class="t-artist">${esc(t.artist || 'Unknown artist')}</div>
@@ -2128,7 +2229,7 @@ async function renderPlaylistDetail(playlistId){
   const [{ data: meta, error: mErr }, { data: pts, error: tErr }] = await Promise.all([
     supabaseClient.from('playlists').select('name, image_url').eq('id', playlistId).single(),
     supabaseClient.from('playlist_tracks')
-      .select('id, sort_index, tracks(id, title, artist, duration, bpm, key_camelot, albums(artist, album, cover_url))')
+      .select('id, sort_index, tracks(*, albums(artist, album, cover_url))')
       .eq('playlist_id', playlistId)
       .order('sort_index'),
   ]);
@@ -2146,6 +2247,7 @@ async function renderPlaylistDetail(playlistId){
     duration: pt.tracks?.duration,
     bpm: pt.tracks?.bpm,
     key_camelot: pt.tracks?.key_camelot,
+    spotify_id: pt.tracks?.spotify_id || null,
     // The song's own performer where it has one - a compilation's album
     // credit ("Various Artists") names nobody useful on a playlist row.
     artist: pt.tracks?.artist || pt.tracks?.albums?.artist,
@@ -2546,7 +2648,7 @@ function renderLibraryAlbum(a){
   // sit nested under it with the original tempos looked up when it was
   // scanned. A saved track's key column is key_camelot; a part's is key.
   const savedParts = t => (t.parts || []).map(p =>
-    `<div class="t-part"><span>${esc(p.position||'')}</span>${esc(p.title||'')}${
+    `<div class="t-part">${playBtnHtml(p.spotify_id)}<span>${esc(p.position||'')}</span>${esc(p.title||'')}${
        p.duration ? ` <span>${esc(p.duration)}</span>` : ''
      }${p.bpm != null
        ? `<span class="p-bpm got" title="original recording — the mix re-edits tempo">${
@@ -2564,7 +2666,7 @@ function renderLibraryAlbum(a){
         const matchArtist = !t.artist ? bpmMatchArtist(t) : null;
         return `<tr>
         <td class="pos">${esc(t.position||'')}</td>
-        <td>${esc(t.title||'?')}${t.is_mix
+        <td>${playBtnHtml(t.spotify_id)}${esc(t.title||'?')}${t.is_mix
             ? ' <span class="mix-tag">mix</span>' : ''}${t.artist
             ? `<div class="t-artist">${esc(t.artist)}</div>`
             : matchArtist

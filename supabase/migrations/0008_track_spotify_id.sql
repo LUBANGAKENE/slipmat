@@ -1,0 +1,21 @@
+-- Run this in the SQL Editor if your project's tracks table already exists
+-- (schema.sql now includes this column for anyone provisioning fresh).
+--
+-- spotify_id is the 22-character Spotify track id for whichever recording
+-- the BPM/key lookup matched - the same recording bpm_matched names in
+-- words. The scan already works it out (it's how the tempo was found at
+-- all), and it's what the tracklist's 30-second preview button plays: the
+-- app hands the id to /api/preview, which resolves a p.scdn.co clip URL
+-- from Spotify's embed player. Without this column the button worked on the
+-- scan page and then vanished on save, the same way bpm_matched used to.
+--
+-- Not a claim about this pressing: a title-only match on a various-artists
+-- compilation can point at a modern re-edit, exactly as bpm_matched can.
+-- It's "where the preview comes from", nothing more, and the row already
+-- says so wherever bpm_matched is shown.
+--
+-- Existing rows are unaffected: spotify_id is null, so the preview button
+-- is simply absent for tracks saved before this ran. Re-scanning the album
+-- and saving again fills it in.
+
+alter table public.tracks add column if not exists spotify_id text;
