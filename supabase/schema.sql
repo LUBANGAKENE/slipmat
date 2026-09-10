@@ -57,6 +57,13 @@ create policy "albums: owner full access" on public.albums
 -- row would buy a join, an ordering column and its own RLS policy for
 -- nothing. Postgres can still search inside it when needed:
 --   select * from tracks where parts @> '[{"title": "The Power"}]';
+--
+-- bpm_matched is "Artist - Title" for whichever recording the BPM/key were
+-- actually measured from - not necessarily this pressing's, when artist is
+-- null and the lookup had only a bare title to search on. Kept distinct
+-- from artist on purpose: artist is a credit this app is willing to assert,
+-- bpm_matched is only ever "this is where the tempo number came from" and
+-- is rendered accordingly (dimmer, captioned, never as fact).
 create table public.tracks (
   id           uuid primary key default gen_random_uuid(),
   album_id     uuid not null references public.albums(id) on delete cascade,
@@ -69,6 +76,7 @@ create table public.tracks (
   bpm          numeric,
   key_camelot  text,
   bpm_source   text,
+  bpm_matched  text,
   is_mix       boolean not null default false,
   parts        jsonb
 );

@@ -1,0 +1,22 @@
+-- Run this in the SQL Editor if your project's tracks table already exists
+-- (schema.sql now includes this column for anyone provisioning fresh).
+--
+-- bpm_matched is "Artist - Title" for whichever recording the BPM/key were
+-- actually measured from - not necessarily this pressing's, when artist is
+-- null and the lookup had only a bare title to search on (the common case
+-- for a various-artists compilation with no per-track credit anywhere in
+-- Discogs or MusicBrainz). The scan view already shows this - dimmer,
+-- captioned "not confirmed on this pressing" - but until this column
+-- existed it had nowhere to go on save, so it vanished the moment you left
+-- the scan page.
+--
+-- Deliberately a separate column from artist, not a fallback for it: artist
+-- is a credit this app is willing to assert as fact; bpm_matched is only
+-- ever "this is where the tempo number came from", and stays rendered that
+-- way - the library view shows it exactly like the scan view does, only
+-- when artist is still null.
+--
+-- Existing rows are unaffected: bpm_matched is null, which is exactly what
+-- they were being rendered as anyway.
+
+alter table public.tracks add column if not exists bpm_matched text;

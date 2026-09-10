@@ -1034,10 +1034,15 @@ async function saveToLibrary(d){
     // parts carries the BPM/key resolved for each song inside a mix, which
     // loadBpm wrote back onto the part objects - so a saved megamix keeps
     // the tempos its own row can never have. See migration 0006.
+    //
+    // bpm_matched (migration 0007) is only ever set when artist is still
+    // null: it's not a credit, just which recording the BPM/key came from,
+    // and it's redundant the moment a real credit exists.
     const trackRows = (d.tracks || []).map((t, i) => ({
       album_id: album.id, sort_index: i, position: t.position || null,
       title: t.title || '?', artist: t.artist || null, duration: t.duration || null,
       bpm: t.bpm ?? null, key_camelot: t.key ?? null, bpm_source: t.bpm_source ?? null,
+      bpm_matched: t.artist ? null : (t.bpm_matched || null),
       is_mix: !!t.is_mix,
       parts: (t.parts || []).length ? t.parts.map(p => ({
         position: p.position || null, title: p.title || null,
@@ -1049,14 +1054,15 @@ async function saveToLibrary(d){
     if (trackRows.length){
       let { error: terr } = await supabaseClient.from('tracks').insert(trackRows);
 
-      // A project that hasn't run migration 0006 has no artist/is_mix/parts
-      // columns, and Postgres rejects the whole insert (42703) rather than
-      // ignoring them - which would lose the entire tracklist over three
-      // optional fields. Drop them and save what the old schema does hold.
+      // A project that hasn't run every tracks migration has no artist/
+      // is_mix/parts/bpm_matched columns, and Postgres rejects the whole
+      // insert (42703) rather than ignoring the ones it doesn't have -
+      // which would lose the entire tracklist over a handful of optional
+      // fields. Drop them and save what the schema on hand does hold.
       if (terr && (terr.code === '42703' || /column .* does not exist/i.test(terr.message||''))){
-        console.warn('tracks insert: schema predates migration 0006, saving without '
-                     + 'per-track artist / mix parts —', terr.message);
-        const legacy = trackRows.map(({ artist, is_mix, parts, ...keep }) => keep);
+        console.warn('tracks insert: schema predates migration 0006/0007, saving '
+                     + 'without per-track artist / mix parts / bpm_matched —', terr.message);
+        const legacy = trackRows.map(({ artist, is_mix, parts, bpm_matched, ...keep }) => keep);
         ({ error: terr } = await supabaseClient.from('tracks').insert(legacy));
         degraded = !terr;
       }
@@ -1064,7 +1070,7 @@ async function saveToLibrary(d){
     }
 
     st.className = 'status ok';
-    st.textContent = degraded ? 'Saved (run migration 0006 to keep mix details).' : 'Saved.';
+    st.textContent = degraded ? 'Saved (run migrations 0006/0007 to keep mix/BPM details).' : 'Saved.';
     btn.textContent = 'Saved';
   } catch(err){
     st.className = 'status err';
@@ -2272,18 +2278,34 @@ function renderLibraryAlbum(a){
             esc(String(p.bpm))} <span class="key">${esc(p.key||'')}</span></span>`
        : ''}</div>`).join('');
 
+  // bpm_matched ("Artist - Title") is only ever set when artist itself is
+  // still null (see saveToLibrary) - it names whichever recording the BPM
+  // was measured from, not a credit, so it renders the same dim/italic way
+  // the scan view shows it and only ever as a fallback to a real artist.
+  const bpmMatchArtist = t => (t.bpm_matched || '').split(' - ')[0] || null;
+
   const rows = tracks.length
-    ? tracks.map(t=>`<tr>
+    ? tracks.map(t=>{
+        const matchArtist = !t.artist ? bpmMatchArtist(t) : null;
+        return `<tr>
         <td class="pos">${esc(t.position||'')}</td>
         <td>${esc(t.title||'?')}${t.is_mix
             ? ' <span class="mix-tag">mix</span>' : ''}${t.artist
-            ? `<div class="t-artist">${esc(t.artist)}</div>` : ''}${savedParts(t)}</td>
+            ? `<div class="t-artist">${esc(t.artist)}</div>`
+            : matchArtist
+            ? `<div class="t-artist from-bpm" title="the BPM and key came from this `
+              + `recording — not confirmed as the performer on this pressing">`
+              + `${esc(matchArtist)}</div>`
+            : ''}${savedParts(t)}</td>
         <td class="dur">${esc(t.duration||'')}</td>
-        <td class="bpm${t.bpm!=null?' got':''}">${
+        <td class="bpm${t.bpm!=null?' got':''}"${
+          t.bpm != null && t.bpm_matched ? ` title="${esc(t.bpm_matched)}"` : ''
+        }>${
           t.bpm != null
             ? `${esc(String(t.bpm))} <span class="key">${esc(t.key_camelot||'')}</span>`
             : (t.is_mix ? 'mix' : '—')
-        }</td></tr>`).join('')
+        }</td></tr>`;
+      }).join('')
     : `<tr><td colspan="4" class="empty">No tracklist saved.</td></tr>`;
 
   const saved = new Date(a.created_at).toLocaleDateString();
