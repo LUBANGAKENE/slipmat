@@ -176,6 +176,19 @@ def is_generic_artist(name):
     return _norm(name) in _GENERIC_ARTISTS
 
 
+def _strip_parens(s):
+    """Drop trailing "(The Original Movie Sound Track)"-style annotations.
+
+    A release's canonical Discogs title often carries a parenthetical
+    subtitle that nothing printed on a sleeve, or transcribed off one, is
+    going to reproduce word for word. Without stripping it, "Saturday Night
+    Fever" scores only a weak loose-containment match against Discogs'
+    "Saturday Night Fever (The Original Movie Sound Track)" - worse than an
+    unrelated release whose title happens to match exactly.
+    """
+    return re.sub(r"\s*[\(\[][^()\[\]]*[\)\]]\s*$", "", s or "").strip()
+
+
 def _rank(candidates, artist, album):
     """Score-fill 'match' on each candidate: how well artist/title agree with
     the hypothesis, independent of whichever source's own relevance score.
@@ -195,7 +208,8 @@ def _rank(candidates, artist, album):
     generic = is_generic_artist(artist)
     for rel in candidates:
         got_a, got_t = _norm(rel["artist"]), _norm(rel["title"])
-        exact = (0 if generic else got_a == want_a) + (got_t == want_t)
+        title_exact = got_t == want_t or _norm(_strip_parens(rel["title"])) == want_t
+        exact = (0 if generic else got_a == want_a) + title_exact
         loose = ((0 if generic else (want_a in got_a or got_a in want_a)) +
                  (want_t in got_t or got_t in want_t))
         rel["match"] = ("exact" if exact == 2
@@ -403,6 +417,12 @@ def _discogs_release(r):
         "catno": catno,
         "score": 0,
         "match": None,
+        # How many Discogs users own this exact pressing. Not a quality
+        # signal in general - a rare pressing isn't wrong for being rare -
+        # only a tiebreaker between two candidates that already score the
+        # same on title/artist agreement, where it separates a widely-known
+        # release from an obscure same-titled impostor.
+        "popularity": (r.get("community") or {}).get("have") or 0,
     }
 
 
@@ -449,10 +469,20 @@ def discogs_search(artist, album, catalog_number=None):
     # differ - a 7" edit is not the 12" version. When the sleeve gave a
     # catalogue number, the pressing carrying it is the record in your hands,
     # so it outranks an equally-good title match on some other pressing.
+    #
+    # Below that, popularity breaks ties among same-tier matches. A generic
+    # movie-tie-in title like "Saturday Night Fever" was reused by budget
+    # cover-version LPs that title-match exactly, the same way the real
+    # soundtrack does once _rank looks past its "(The Original Movie Sound
+    # Track)" subtitle - so an exact title match alone doesn't disambiguate
+    # them. Discogs' own "have" count does: the genuine soundtrack sits in
+    # tens of thousands of collections, an obscure same-titled knockoff in a
+    # few hundred.
     want_catno = _norm(catalog_number)
     order = {"exact": 0, "strong": 1, "weak": 2}
     return sorted(out, key=lambda r: (order[r["match"]],
-                                      0 if want_catno and _norm(r["catno"]) == want_catno else 1))
+                                      0 if want_catno and _norm(r["catno"]) == want_catno else 1,
+                                      -r["popularity"]))
 
 
 # ------------------------------------------------------------------ merged lookup
