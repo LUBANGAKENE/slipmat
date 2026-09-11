@@ -489,16 +489,33 @@
      the phone this gets used on next to the decks, which is the one place
      a wrong match is most worth catching.
 
+     Drawn as an inline SVG background rather than a Unicode glyph
+     (content:'\270e') - that rendered fine in desktop Chrome but was
+     effectively invisible on iOS Safari, which does not treat the
+     Dingbats pencil the same way. An SVG rasterises identically
+     everywhere, which a font glyph never quite guarantees. Two data URIs,
+     one per fill colour, rather than one recoloured via mask-image -
+     -webkit-mask and the standard mask property disagree on whether black
+     means "shown" or "hidden" (alpha vs luminance compositing), which is
+     its own cross-browser trap.
+
      #library-panel gets the plain td.bpm only, not .p-bpm: a saved mix's
      parts live in a JSON column rather than their own row, with nothing
      for the fix to persist against yet, so they stay non-interactive
      there rather than offering an edit that goes nowhere. */
   #out td.bpm,#out .p-bpm,#library-panel td.bpm{cursor:pointer}
+  /* Fills below are var(--line2)/var(--dim) spelled out as hex - a data URI
+     is opaque to the page's CSS custom properties, so currentColor and
+     var() both resolve against the SVG's own (nonexistent) context rather
+     than this element's. If the palette changes, these two need updating
+     by hand to match. */
   #out td.bpm::after,#out .p-bpm::after,#library-panel td.bpm::after{
-    content:'\270e';display:inline-block;margin-left:5px;font-size:9px;
-    color:var(--line2);vertical-align:1px}
+    content:'';display:inline-block;width:9px;height:9px;margin-left:5px;
+    vertical-align:-1px;background-repeat:no-repeat;background-size:contain;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232A2F35' d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E")}
   #out td.bpm:hover::after,#out .p-bpm:hover::after,
-  #library-panel td.bpm:hover::after{color:var(--dim)}
+  #library-panel td.bpm:hover::after{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%236B7A82' d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E")}
   /* A track's own artist only ever shows up here for a various-artists
      compilation, where the title cell already wraps for long transcribed
      titles - this follows the same rule rather than truncating. */
