@@ -487,11 +487,18 @@
      so the affordance is a small pencil after the text instead. It has to
      stand on its own, not just brighten on hover: hover doesn't exist on
      the phone this gets used on next to the decks, which is the one place
-     a wrong match is most worth catching. */
-  #out td.bpm,#out .p-bpm{cursor:pointer}
-  #out td.bpm::after,#out .p-bpm::after{content:'\270e';display:inline-block;
-    margin-left:5px;font-size:9px;color:var(--line2);vertical-align:1px}
-  #out td.bpm:hover::after,#out .p-bpm:hover::after{color:var(--dim)}
+     a wrong match is most worth catching.
+
+     #library-panel gets the plain td.bpm only, not .p-bpm: a saved mix's
+     parts live in a JSON column rather than their own row, with nothing
+     for the fix to persist against yet, so they stay non-interactive
+     there rather than offering an edit that goes nowhere. */
+  #out td.bpm,#out .p-bpm,#library-panel td.bpm{cursor:pointer}
+  #out td.bpm::after,#out .p-bpm::after,#library-panel td.bpm::after{
+    content:'\270e';display:inline-block;margin-left:5px;font-size:9px;
+    color:var(--line2);vertical-align:1px}
+  #out td.bpm:hover::after,#out .p-bpm:hover::after,
+  #library-panel td.bpm:hover::after{color:var(--dim)}
   /* A track's own artist only ever shows up here for a various-artists
      compilation, where the title cell already wraps for long transcribed
      titles - this follows the same rule rather than truncating. */
@@ -1024,8 +1031,14 @@ function applyBpmToCell(e, f){
   // title cell. Parts get one too - the songs inside a mix are ordinary
   // singles with ordinary previews - prepended to the part row. Scoped to
   // direct children: a title cell also contains its parts' buttons.
-  const target = e.isPart ? c.closest('.t-part')
-                          : document.getElementById('ttl' + e.ti);
+  //
+  // titleCellId is how the caller says which cell that is - the scan table
+  // ids it 'ttl'+index, but the saved-library table (renderLibraryAlbum) has
+  // no index to build that from, only the track's own database id, so it
+  // sets this explicitly instead.
+  const titleCell = e.isPart ? null
+                    : document.getElementById(e.titleCellId || ('ttl' + e.ti));
+  const target = e.isPart ? c.closest('.t-part') : titleCell;
   if (target){
     target.querySelector(':scope > .play-btn')?.remove();
     if (f.spotify_id)
@@ -1037,7 +1050,7 @@ function applyBpmToCell(e, f){
   // compilation those are different people, and the per-track artist search
   // (loadTrackArtists) may still fill the real one in over the top of this.
   if (!e.isPart){
-    const cell = document.getElementById('ttl' + e.ti);
+    const cell = titleCell;
     if (cell){
       cell.querySelector(':scope > .t-artist.from-bpm')?.remove();
       if (!e.row.artist && f.matched_artist
@@ -1071,6 +1084,43 @@ out.addEventListener('click', e => {
   const entry = bpmEntries.get(cell.id);
   if (entry) openFixSheet(entry);
 });
+
+// The same picker, opened from an already-saved track instead of a scan
+// still sitting in the browser. Built lazily here rather than kept in
+// bpmEntries alongside the scan's - #library-panel re-renders every album on
+// nearly every view switch, and rebuilding a map to match each time is more
+// bookkeeping than just looking the track up by the id the click landed on.
+$('#library-panel').addEventListener('click', e => {
+  const cell = e.target.closest('td.bpm[id^="libbpm-"]');
+  if (!cell) return;
+  const trackId = cell.id.slice('libbpm-'.length);
+  for (const a of libraryAlbums){
+    const t = (a.tracks || []).find(tr => tr.id === trackId);
+    if (t){
+      openFixSheet({
+        id: cell.id, titleCellId: 'libttl-' + trackId,
+        title: t.title, artist: t.artist || null, row: t,
+        onPicked: payload => persistTrackPick(t, payload),
+      });
+      return;
+    }
+  }
+});
+
+// A saved track's correction has to outlive the tab it was made in - unlike
+// a scan row, which reaches the database only once Save to library runs,
+// this one already has one there to update. Same rule saveToLibrary itself
+// writes under: bpm_matched only means anything while the track still has
+// no artist credit of its own.
+async function persistTrackPick(track, payload){
+  const { error } = await supabaseClient.from('tracks').update({
+    bpm: payload.bpm ?? null, key_camelot: payload.key ?? null,
+    bpm_source: payload.source ?? null,
+    bpm_matched: track.artist ? null : (payload.matched || null),
+    spotify_id: payload.spotify_id || null,
+  }).eq('id', track.id);
+  if (error) throw error;
+}
 
 function openFixSheet(entry){
   fixEntry = entry;
@@ -1212,6 +1262,17 @@ async function pickFixCandidate(cand){
     const body = await r.json();
     if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
     applyBpmToCell(entry, body);
+
+    // A scan row lives only in the browser until Save to library writes it,
+    // so painting the cell is the whole job. A saved row is already a
+    // Supabase record the library keeps rendering from - onPicked is how a
+    // library entry says "and write it back", so the fix outlives the tab.
+    if (entry.onPicked){
+      try{ await entry.onPicked(body); }
+      catch(perr){
+        alert('Found the right recording, but could not save it: ' + perr.message);
+      }
+    }
   } catch(err){
     // Put back whatever the row already had rather than leaving it on '…'.
     applyBpmToCell(entry, entry.row.bpm == null ? null : {
@@ -2910,9 +2971,13 @@ function renderLibraryAlbum(a){
   const rows = tracks.length
     ? tracks.map(t=>{
         const matchArtist = !t.artist ? bpmMatchArtist(t) : null;
+        // Ids only make sense on a real saved row (t.id from the tracks
+        // table) - they're what the click handler below uses to find its
+        // way back to this exact track, and what the correction persists
+        // against. A tracklist that failed to save keeps its plain look.
         return `<tr>
         <td class="pos">${esc(t.position||'')}</td>
-        <td>${playBtnHtml(t.spotify_id, t.artist || a.artist, t.title)}${esc(t.title||'?')}${t.is_mix
+        <td${t.id ? ` id="libttl-${esc(t.id)}"` : ''}>${playBtnHtml(t.spotify_id, t.artist || a.artist, t.title)}${esc(t.title||'?')}${t.is_mix
             ? ' <span class="mix-tag">mix</span>' : ''}${t.artist
             ? `<div class="t-artist">${esc(t.artist)}</div>`
             : matchArtist
@@ -2921,7 +2986,7 @@ function renderLibraryAlbum(a){
               + `${esc(matchArtist)}</div>`
             : ''}${savedParts(t)}</td>
         <td class="dur">${esc(t.duration||'')}</td>
-        <td class="bpm${t.bpm!=null?' got':''}"${
+        <td class="bpm${t.bpm!=null?' got':''}"${t.id ? ` id="libbpm-${esc(t.id)}"` : ''}${
           t.bpm != null && t.bpm_matched ? ` title="${esc(t.bpm_matched)}"` : ''
         }>${
           t.bpm != null

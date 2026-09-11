@@ -75,6 +75,12 @@ the row carries that into your library when you save. Blank cells open the
 same picker: a miss is the other case where searching by hand is the only
 way through.
 
+The same click works on a track already saved to your library, not just a
+fresh scan — open the album from the Library tab and click its BPM cell the
+same way. There the pick writes straight to that track's row in Supabase, so
+the correction is there next time you open the library, not only for the
+rest of this scan.
+
 Recordings ReccoBeats has no tempo for are listed greyed out rather than
 hidden — Spotify's catalogue is the larger of the two, and "why isn't my
 version here?" is a worse question than a row that says *no tempo*. The pick
