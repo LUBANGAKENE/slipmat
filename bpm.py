@@ -487,6 +487,126 @@ def spotify_id_for(artist, title):
     return sid
 
 
+# ------------------------------------------------------- picking one by hand
+
+def search_candidates(query, limit=8):
+    """Recordings matching free text, for the "wrong song?" picker.
+
+    The chain above picks a recording on its own and is usually right. This
+    is the escape hatch for when it isn't - a title with no artist to
+    constrain it ("Wonderful World" on a various-artists sleeve) matches
+    whatever the catalogue ranks first, which can be a covers-album version
+    at a different tempo entirely.
+
+    Spotify answers when it's configured, because it carries album art and
+    an album name - which is most of what makes a list of near-identical
+    titles tellable apart by eye. ReccoBeats' own search stands in when it
+    isn't, with less to look at but the same ids underneath.
+    """
+    query = _plain(query or "").strip()
+    if not query:
+        return []
+
+    _, spotify, recco = _clients()
+
+    if spotify.configured:
+        try:
+            items = spotify._search(query, limit)
+        except requests.HTTPError as exc:
+            if not spotify._note_failure(exc):
+                raise
+            items = None                # handled; fall through to ReccoBeats
+        if items is not None:
+            out = [{
+                "spotify_id": it.get("id"),
+                "title": it.get("name"),
+                "artist": ", ".join(a["name"] for a in it.get("artists", [])) or None,
+                "album": (it.get("album") or {}).get("name"),
+                # Smallest image on offer: these render at 38px.
+                "cover": _smallest_image((it.get("album") or {}).get("images")),
+                "duration_s": round((it.get("duration_ms") or 0) / 1000) or None,
+            } for it in items if it.get("id")]
+            _mark_resolvable(recco, out)
+            return out
+
+    # No Spotify: ReccoBeats' own search. Everything it returns is by
+    # definition something it knows, so there is nothing to check.
+    body = recco._get("/track/search", searchText=query, size=limit) or {}
+    out = []
+    for it in body.get("content") or []:
+        sid = _spotify_id(it)
+        if not sid:
+            continue                    # no id means nothing to resolve later
+        out.append({
+            "spotify_id": sid,
+            "title": it.get("trackTitle"),
+            "artist": ", ".join(a["name"] for a in it.get("artists", [])) or None,
+            "album": None,
+            "cover": None,
+            "duration_s": round((it.get("durationMs") or 0) / 1000) or None,
+            "resolvable": True,
+        })
+    return out
+
+
+def _mark_resolvable(recco, candidates):
+    """Flag which candidates ReccoBeats can actually produce a tempo for.
+
+    Spotify's catalogue is the larger of the two, so a search against it
+    offers recordings ReccoBeats has never heard of - pick one of those and
+    the correction dead-ends on a 404 that reads like a bug. Its /track
+    endpoint takes a comma-separated batch, so the whole list is checked in
+    one round trip and the picker can grey out what it cannot deliver
+    instead of letting you choose it and fail.
+
+    A check that itself fails leaves everything marked available: the pick
+    may still work, and refusing the whole list over one bad round trip
+    would be worse than letting it be tried.
+    """
+    ids = [c["spotify_id"] for c in candidates if c.get("spotify_id")]
+    if not ids:
+        return
+    body = recco._get("/track", ids=",".join(ids))
+    if body is None:
+        for c in candidates:
+            c["resolvable"] = True
+        return
+    known = {sid for sid in (_spotify_id(t) for t in body.get("content") or []) if sid}
+    for c in candidates:
+        c["resolvable"] = c["spotify_id"] in known
+
+
+def _smallest_image(images):
+    """Spotify sorts album art largest first; we render it at 38px."""
+    urls = [im.get("url") for im in (images or []) if im.get("url")]
+    return urls[-1] if urls else None
+
+
+def features_for_spotify_id(spotify_id, artist=None, title=None):
+    """Features for one recording the user picked out of the list by hand.
+
+    Cached under the artist and title that were *searched*, not the ones on
+    the recording picked - so the correction lands on exactly the key that
+    produced the wrong answer, and the next lookup of that same track gets
+    the chosen recording instead of the top search hit. A hand-pick is
+    better evidence than search ranking, so it overwrites what's there.
+
+    The one collision is two different artist-less records sharing a title,
+    where the second inherits the first's correction. That is the same key
+    the ranking-based answer already shared, so this trades an unvetted
+    guess for a considered one rather than introducing the overlap.
+    """
+    cache, _, recco = _clients()
+    track = recco.by_spotify_id(spotify_id)
+    if not track:
+        return None
+    feat = _from_recco(recco.features(track["id"]), track)
+    if feat and title:
+        feat["source"] = "picked"
+        cache.put(artist, title, feat)
+    return feat
+
+
 def annotate(record, allow_network=True):
     """Fill in every track of a Slipmat record in place, and return it.
 

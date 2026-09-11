@@ -213,6 +213,20 @@
     letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
   .sheet-empty{padding:6px 18px 14px;color:var(--dim);font-size:13.5px}
 
+  /* "Wrong song?" - search the catalogue for the recording the numbers
+     should have come from. Reuses the sheet shell, the add-sheet's search
+     field and the header search box's result rows; the only new thing here
+     is the scroll box they sit in. */
+  .fix-results{padding:0 10px 6px;max-height:46vh;overflow-y:auto}
+  /* ReccoBeats is the smaller catalogue of the two, so Spotify offers
+     recordings it has no tempo for. Shown, but visibly not an option -
+     hiding them invites "why isn't my version in the list?". */
+  .search-row.off{opacity:.4;cursor:default}
+  .search-row.off:hover{background:transparent}
+  .row-tag{flex:none;font-family:var(--font-mono);font-size:9.5px;
+    letter-spacing:.1em;text-transform:uppercase;color:var(--dim);
+    border:1px solid var(--line2);border-radius:3px;padding:1px 5px}
+
   .pl-layout{display:flex;border:1px solid var(--line);border-radius:10px;
     overflow:hidden;min-height:320px}
   .pl-tree{width:230px;flex:none;background:var(--panel);border-right:1px solid var(--line);
@@ -467,6 +481,13 @@
     td.dur{display:none}
   }
   td.bpm .key{color:var(--teal);font-weight:600}
+  /* Every BPM cell is a way in to "that's the wrong song" - including the
+     blank ones, which is where you most want to search by hand. Underlined
+     on hover rather than given a button of its own: an edit affordance per
+     row would out-shout the numbers, which are what the table is for. */
+  #out td.bpm,#out .p-bpm{cursor:pointer}
+  #out td.bpm:hover,#out .p-bpm:hover{text-decoration:underline dotted;
+    text-underline-offset:3px}
   /* A track's own artist only ever shows up here for a various-artists
      compilation, where the title cell already wraps for long transcribed
      titles - this follows the same rule rather than truncating. */
@@ -640,6 +661,18 @@
     <input type="text" id="add-search" placeholder="Search your library" autocomplete="off">
   </div>
   <div id="add-list"></div>
+</div>
+
+<!-- "That's the wrong song" - pick the recording the BPM and key should
+     have come from. Opened from any BPM cell in the scan table. -->
+<div class="sheet" id="fix-sheet">
+  <div class="sheet-grab"></div>
+  <div class="sheet-head" id="fix-head"></div>
+  <div class="add-search">
+    <input type="text" id="fix-search" placeholder="Search for the right recording"
+           autocomplete="off" autocorrect="off" spellcheck="false">
+  </div>
+  <div class="fix-results" id="fix-results"></div>
 </div>
 <input type="file" id="pl-cover-input" accept="image/*" hidden>
 
@@ -919,6 +952,12 @@ async function loadBpm(d){
       id:`bpm${i}p${j}`, ti:i, row:p, isPart:true}));
   });
 
+  // Keyed by cell id so clicking a BPM cell can find the row behind it - the
+  // "wrong song?" picker writes back through the same entry this pass does.
+  // Rebuilt per render, so a second scan cannot leave the picker pointing at
+  // the previous record's tracks.
+  bpmEntries = new Map(entries.map(e => [e.id, e]));
+
   const run = ++bpmRun;
   const cells = entries.map(e=>document.getElementById(e.id));
   cells.forEach(c=>{ if(c) c.textContent='…'; });
@@ -933,59 +972,250 @@ async function loadBpm(d){
     if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
 
     (body.results||[]).forEach((f,i)=>{
-      const e = entries[i], c = cells[i];
-      if (!e) return;
-      if (f){
-        // Written back onto the track (or part) itself, not just painted into
-        // the DOM - Save to library reads from here, and the cell is thrown
-        // away the next time show() runs.
-        e.row.bpm = f.bpm; e.row.key = f.key; e.row.bpm_source = f.source;
-        e.row.bpm_matched = f.matched || null;
-        e.row.spotify_id = f.spotify_id || null;
-      }
-      if (!c) return;
-      if (!f){ c.textContent = e.isMix ? 'mix' : '—'; return; }
-      c.classList.add('got');
-      // Name the recording these numbers were measured from. Without an
-      // artist to search on, a bare title matches whatever the catalogue
-      // ranks first - which for a 1977 song is regularly a modern re-edit at
-      // a different tempo. Saying which recording answered turns that from
-      // an invisible wrong number into a visible one.
-      const from = f.matched ? '\n' + f.matched : '';
-      c.title = (e.isPart
-        ? 'original recording, via ' + (f.source||'?') + ' — the mix re-edits tempo'
-        : 'via ' + (f.source||'?')) + from;
-      c.innerHTML = `${esc(String(f.bpm))} <span class="key">${esc(f.key||'')}</span>`;
-
-      // A play button for the recording the tempo came from, at the head of
-      // the title cell. Parts get one too - the songs inside a mix are
-      // ordinary singles with ordinary previews - prepended to the part row.
-      if (f.spotify_id){
-        const target = e.isPart ? c.closest('.t-part')
-                                : document.getElementById('ttl' + e.ti);
-        if (target && !target.querySelector('.play-btn'))
-          target.insertAdjacentHTML('afterbegin', playBtnHtml(f.spotify_id));
-      }
-
-      // A track with no credit of its own: show who the tempo came from,
-      // as the tempo's source rather than as this pressing's performer -
-      // on a covers compilation those are different people, and the
-      // per-track artist search (loadTrackArtists) may still fill the real
-      // one in over the top of this.
-      if (!e.isPart && !e.row.artist && f.matched_artist){
-        const cell = document.getElementById('ttl' + e.ti);
-        if (cell && !cell.querySelector('.t-artist')){
-          cell.insertAdjacentHTML('beforeend',
-            `<div class="t-artist from-bpm" title="the BPM and key came from this `
-            + `recording — not confirmed as the performer on this pressing">`
-            + `${esc(f.matched_artist)}</div>`);
-        }
-      }
+      if (entries[i]) applyBpmToCell(entries[i], f);
     });
   } catch(err){
     if (run !== bpmRun) return;
     entries.forEach((e,i)=>{ if(cells[i]) cells[i].textContent = e.isMix ? 'mix' : '—'; });
     console.warn('bpm lookup failed:', err.message);
+  }
+}
+
+// Paint one track's numbers into its cell, and write them back onto the track
+// itself - Save to library reads from there, and the cell is thrown away the
+// next time show() runs. Shared by the batch pass above and by a correction
+// picked by hand below, so a fixed row is indistinguishable from one that
+// resolved on its own. Everything it adds it first removes: on the correction
+// path there is already a play button pointing at the wrong recording, and a
+// wrong name under the title.
+function applyBpmToCell(e, f){
+  if (f){
+    e.row.bpm = f.bpm; e.row.key = f.key; e.row.bpm_source = f.source;
+    e.row.bpm_matched = f.matched || null;
+    e.row.spotify_id = f.spotify_id || null;
+  }
+
+  const c = document.getElementById(e.id);
+  if (!c) return;
+  if (!f){
+    c.textContent = e.isMix ? 'mix' : '—';
+    c.classList.remove('got');
+    c.title = 'no tempo found — click to search for the right recording';
+    return;
+  }
+
+  c.classList.add('got');
+  // Name the recording these numbers were measured from. Without an artist
+  // to search on, a bare title matches whatever the catalogue ranks first -
+  // which for a 1977 song is regularly a modern re-edit at a different
+  // tempo. Saying which recording answered turns that from an invisible
+  // wrong number into a visible one - and now into a fixable one.
+  const from = f.matched ? '\n' + f.matched : '';
+  c.title = (e.isPart
+    ? 'original recording, via ' + (f.source||'?') + ' — the mix re-edits tempo'
+    : 'via ' + (f.source||'?')) + from + '\nclick to pick a different recording';
+  c.innerHTML = `${esc(String(f.bpm))} <span class="key">${esc(f.key||'')}</span>`;
+
+  // A play button for the recording the tempo came from, at the head of the
+  // title cell. Parts get one too - the songs inside a mix are ordinary
+  // singles with ordinary previews - prepended to the part row. Scoped to
+  // direct children: a title cell also contains its parts' buttons.
+  const target = e.isPart ? c.closest('.t-part')
+                          : document.getElementById('ttl' + e.ti);
+  if (target){
+    target.querySelector(':scope > .play-btn')?.remove();
+    if (f.spotify_id)
+      target.insertAdjacentHTML('afterbegin', playBtnHtml(f.spotify_id));
+  }
+
+  // A track with no credit of its own: show who the tempo came from, as the
+  // tempo's source rather than as this pressing's performer - on a covers
+  // compilation those are different people, and the per-track artist search
+  // (loadTrackArtists) may still fill the real one in over the top of this.
+  if (!e.isPart){
+    const cell = document.getElementById('ttl' + e.ti);
+    if (cell){
+      cell.querySelector(':scope > .t-artist.from-bpm')?.remove();
+      if (!e.row.artist && f.matched_artist
+          && !cell.querySelector(':scope > .t-artist')){
+        cell.insertAdjacentHTML('beforeend',
+          `<div class="t-artist from-bpm" title="the BPM and key came from this `
+          + `recording — not confirmed as the performer on this pressing">`
+          + `${esc(f.matched_artist)}</div>`);
+      }
+    }
+  }
+}
+
+// ------------------------------------------------- that's the wrong song
+// The chain picks a recording on its own and is usually right. When it
+// isn't - a title with no artist to constrain it matches whatever the
+// catalogue ranks first - this is how you say so. Click any BPM cell in the
+// scan table, search the catalogue, pick the recording the numbers should
+// have come from. The pick is also cached server-side under the key that
+// missed, so the same track resolves correctly next time.
+let bpmEntries = new Map();     // cell id -> the entry loadBpm built
+let fixEntry = null;            // which row the open picker is fixing
+let fixResults = [];
+let fixActive = -1;
+let fixRun = 0;
+let fixTimer = null;
+
+out.addEventListener('click', e => {
+  const cell = e.target.closest('td.bpm, .p-bpm');
+  if (!cell) return;
+  const entry = bpmEntries.get(cell.id);
+  if (entry) openFixSheet(entry);
+});
+
+function openFixSheet(entry){
+  fixEntry = entry;
+  fixResults = [];
+  fixActive = -1;
+
+  const heard = entry.row.bpm_matched;
+  $('#fix-head').innerHTML = `
+    <div class="t">
+      <div class="t-title">${esc(entry.title || '?')}</div>
+      <div class="t-artist">${heard
+        ? 'now using: ' + esc(heard)
+        : 'no recording matched yet'}</div>
+    </div>`;
+
+  // Prefilled with what the row was looked up as, since that is usually
+  // right apart from missing an artist - the fix is normally adding one
+  // word, not typing the search from scratch.
+  const input = $('#fix-search');
+  input.value = [entry.artist, entry.title].filter(Boolean).join(' ');
+  $('#fix-results').innerHTML =
+    '<div class="sheet-empty">Searching&hellip;</div>';
+  $('#fix-sheet').style.display = 'block';
+  $('#sheet-backdrop').style.display = 'block';
+  input.focus();
+  input.select();
+  runFixSearch();
+}
+
+function closeFixSheet(){
+  $('#fix-sheet').style.display = 'none';
+  $('#sheet-backdrop').style.display = 'none';
+  $('#fix-results').innerHTML = '';
+  clearTimeout(fixTimer);
+  fixRun++;                     // in-flight replies land after we're gone
+  fixEntry = null;
+  fixResults = [];
+  fixActive = -1;
+}
+
+// Unlike the header's box - which filters albums already in memory - every
+// keystroke here is a round trip to a catalogue, so it waits for a pause.
+function queueFixSearch(){
+  clearTimeout(fixTimer);
+  fixTimer = setTimeout(runFixSearch, 250);
+}
+
+async function runFixSearch(){
+  const q = $('#fix-search').value.trim();
+  const run = ++fixRun;
+  if (!q){
+    fixResults = [];
+    $('#fix-results').innerHTML =
+      '<div class="sheet-empty">Type a song and artist to search.</div>';
+    return;
+  }
+
+  try{
+    const r = await fetch('/api/track-search', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({q})});
+    const body = await r.json();
+    if (run !== fixRun) return;
+    if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
+    fixResults = body.results || [];
+    fixActive = fixResults.findIndex(c => c.resolvable);
+    renderFixResults();
+  } catch(err){
+    if (run !== fixRun) return;
+    fixResults = [];
+    $('#fix-results').innerHTML =
+      `<div class="sheet-empty">${esc(err.message)}</div>`;
+  }
+}
+
+function renderFixResults(){
+  if (!fixResults.length){
+    $('#fix-results').innerHTML =
+      '<div class="sheet-empty">Nothing found for that.</div>';
+    return;
+  }
+  $('#fix-results').innerHTML = fixResults.map((c, i) => `
+    <div class="search-row${c.resolvable ? '' : ' off'}${i === fixActive ? ' on' : ''}"
+         ${c.resolvable ? `data-i="${i}"` : ''}>
+      <div class="art">${coverHtml(c.cover)}</div>
+      <div class="txt">
+        <div class="r-title">${esc(c.title || '?')}</div>
+        <div class="r-sub">${esc(c.artist || 'Unknown artist')}${
+          c.album ? ' • ' + esc(c.album) : ''}</div>
+      </div>
+      ${c.resolvable ? '' : '<span class="row-tag">no tempo</span>'}
+    </div>`).join('');
+}
+
+function moveFixCursor(step){
+  // Skips what can't be picked, so Enter always lands on something real.
+  const pickable = fixResults.map((c, i) => c.resolvable ? i : -1)
+                             .filter(i => i >= 0);
+  if (!pickable.length) return;
+  const at = pickable.indexOf(fixActive);
+  fixActive = pickable[(at + step + pickable.length) % pickable.length];
+  // Rows and results are 1:1 and in order, including the unpickable ones.
+  const rows = $$('#fix-results .search-row');
+  rows.forEach((el, i) => el.classList.toggle('on', i === fixActive));
+  rows[fixActive]?.scrollIntoView({ block:'nearest' });
+}
+
+$('#fix-search').addEventListener('input', queueFixSearch);
+$('#fix-search').addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown'){ e.preventDefault(); moveFixCursor(1); }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); moveFixCursor(-1); }
+  else if (e.key === 'Enter'){
+    e.preventDefault();
+    clearTimeout(fixTimer);         // don't let a queued search race the pick
+    if (fixActive >= 0) pickFixCandidate(fixResults[fixActive]);
+  }
+  else if (e.key === 'Escape'){ e.preventDefault(); closeFixSheet(); }
+});
+
+$('#fix-results').addEventListener('click', e => {
+  const row = e.target.closest('.search-row[data-i]');
+  if (row) pickFixCandidate(fixResults[Number(row.dataset.i)]);
+});
+
+async function pickFixCandidate(cand){
+  if (!cand || !fixEntry) return;
+  const entry = fixEntry;
+  closeFixSheet();
+
+  const cell = document.getElementById(entry.id);
+  if (cell) cell.textContent = '…';
+  try{
+    const r = await fetch('/api/track-pick', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      // artist/title are what this row was looked up *as* - the cache key
+      // being corrected - not what was picked.
+      body: JSON.stringify({spotify_id: cand.spotify_id,
+                            artist: entry.artist || '', title: entry.title})});
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
+    applyBpmToCell(entry, body);
+  } catch(err){
+    // Put back whatever the row already had rather than leaving it on '…'.
+    applyBpmToCell(entry, entry.row.bpm == null ? null : {
+      bpm: entry.row.bpm, key: entry.row.key, source: entry.row.bpm_source,
+      matched: entry.row.bpm_matched, matched_artist: null,
+      spotify_id: entry.row.spotify_id});
+    if (cell) cell.title = 'could not use that recording: ' + err.message;
+    console.warn('track pick failed:', err.message);
   }
 }
 
@@ -1799,7 +2029,7 @@ $('#track-list').addEventListener('click', e => {
   if (track) openTrackSheet(track);
 });
 
-$('#sheet-backdrop').onclick = () => { closeTrackSheet(); closeAddSheet(); };
+$('#sheet-backdrop').onclick = () => { closeTrackSheet(); closeAddSheet(); closeFixSheet(); };
 
 $('#sheet-actions').addEventListener('click', async e => {
   if (e.target.closest('[data-action="remove"]')){

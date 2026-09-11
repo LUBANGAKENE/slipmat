@@ -71,6 +71,28 @@ def api_scan():
     return jsonify(record)
 
 
+def _bpm_payload(feat):
+    """One track's numbers, as the tracklist table wants them.
+
+    Shared by the batch lookup and by a hand-picked correction, so a row
+    fixed by hand renders through exactly the same path as one that
+    resolved on its own - there is no second, drifting copy of this shape.
+    """
+    if not feat:
+        return None
+    # Which recording the numbers came from. matched_artist is newer than
+    # the cache file, so fall back to splitting the "Artist - Title"
+    # string rows written before it existed still carry.
+    matched = feat.get("matched")
+    return {"bpm": feat["bpm"],
+            "key": feat.get("camelot") or feat.get("key"),
+            "source": feat["source"],
+            "matched": matched,
+            "matched_artist": (feat.get("matched_artist")
+                               or (matched.split(" - ")[0] if matched else None)),
+            "spotify_id": feat.get("spotify_id")}
+
+
 @app.post("/api/bpm")
 def api_bpm():
     """Second pass, once the tracklist is already on screen.
@@ -108,19 +130,7 @@ def api_bpm():
         except Exception:
             traceback.print_exc()
             return None
-        if not feat:
-            return None
-        # Which recording the numbers came from. matched_artist is newer than
-        # the cache file, so fall back to splitting the "Artist - Title"
-        # string rows written before it existed still carry.
-        matched = feat.get("matched")
-        return {"bpm": feat["bpm"],
-                "key": feat.get("camelot") or feat.get("key"),
-                "source": feat["source"],
-                "matched": matched,
-                "matched_artist": (feat.get("matched_artist")
-                                   or (matched.split(" - ")[0] if matched else None)),
-                "spotify_id": feat.get("spotify_id")}
+        return _bpm_payload(feat)
 
     pairs = [(t, track_artists[i] if i < len(track_artists) else None)
             for i, t in enumerate(titles)]
@@ -169,6 +179,64 @@ def api_track_artists():
     return jsonify({"results": results})
 
 
+# ------------------------------------------------------- correcting a match
+
+# Shared by the picker below and the preview route further down: both take a
+# Spotify track id straight off a request and hand it to an outbound URL.
+_SPOTIFY_ID = re.compile(r"^[A-Za-z0-9]{22}$")
+
+
+@app.post("/api/track-search")
+def api_track_search():
+    """Recordings matching what the user typed, for the "wrong song?" picker.
+
+    Unlike the header's search box - which filters the library already in
+    memory - this one goes to the catalogue, so it is a real round trip and
+    the browser debounces it.
+    """
+    payload = request.get_json(silent=True) or {}
+    query = (payload.get("q") or "").strip()
+    if not query:
+        return jsonify({"error": "nothing to search for"}), 400
+    if len(query) > 200:
+        return jsonify({"error": "search text too long"}), 400
+
+    try:
+        results = bpm.search_candidates(query, limit=8)
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"error": "could not reach the catalogue"}), 502
+    return jsonify({"results": results})
+
+
+@app.post("/api/track-pick")
+def api_track_pick():
+    """Take the numbers from one specific recording, chosen by hand.
+
+    artist/title are what the row was looked up *as*, not what was picked -
+    they are the cache key being corrected, so the same track resolves to
+    the chosen recording next time instead of the top search hit.
+    """
+    payload = request.get_json(silent=True) or {}
+    track_id = (payload.get("spotify_id") or "").strip()
+    if not _SPOTIFY_ID.match(track_id):
+        return jsonify({"error": "bad track id"}), 400
+
+    title = (payload.get("title") or "").strip() or None
+    artist = (payload.get("artist") or "").strip() or None
+    if identify.is_generic_artist(artist):
+        artist = None
+
+    try:
+        feat = bpm.features_for_spotify_id(track_id, artist, title)
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"error": "could not read that recording"}), 502
+    if not feat:
+        return jsonify({"error": "no tempo known for that recording"}), 404
+    return jsonify(_bpm_payload(feat))
+
+
 # --------------------------------------------------------------- track preview
 
 # Spotify id -> (preview url or None, fetched_at). A None is cached too, with a
@@ -178,7 +246,6 @@ _PREVIEW = {}
 _PREVIEW_LOCK = threading.Lock()
 _PREVIEW_HIT_TTL = 24 * 3600
 _PREVIEW_MISS_TTL = 3600
-_SPOTIFY_ID = re.compile(r"^[A-Za-z0-9]{22}$")
 _PREVIEW_IN_PAGE = re.compile(r'"audioPreview"\s*:\s*\{\s*"url"\s*:\s*"([^"]+)"')
 
 

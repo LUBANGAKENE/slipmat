@@ -60,6 +60,27 @@ Expect blanks on underground 12"s. We start from a photograph, so there is no
 audio to measure — every number is looked up, and streaming catalogues never
 carried those records. A blank column is the honest answer there.
 
+### When it matches the wrong song
+
+A title with no artist to constrain it — every track on a various-artists
+sleeve that credits nobody per track — matches whatever the catalogue ranks
+first. "Wonderful World" lands on some covers-album version rather than Sam
+Cooke, and reports its tempo. Naming the recording under the title is what
+makes that visible; clicking the BPM cell is what fixes it.
+
+That opens a catalogue search, prefilled with what the row was looked up as —
+usually the fix is adding an artist, not typing it fresh. Pick the right
+recording and the tempo, key, play button and credit all repoint to it, and
+the row carries that into your library when you save. Blank cells open the
+same picker: a miss is the other case where searching by hand is the only
+way through.
+
+Recordings ReccoBeats has no tempo for are listed greyed out rather than
+hidden — Spotify's catalogue is the larger of the two, and "why isn't my
+version here?" is a worse question than a row that says *no tempo*. The pick
+is also written back into the cache under the key that missed, so the same
+track resolves to your choice next time instead of the top search hit.
+
 ---
 
 ## Setup
@@ -301,7 +322,10 @@ enough. `weak` is rejected outright.
 **4. A blank beats a guess.** The same rule governs BPM lookup. Search always
 returns *something*, so every result is checked against what was asked for
 before it is accepted — an unverified match means a misread sleeve silently
-gets an unrelated record's tempo, which is worse than an empty column.
+gets an unrelated record's tempo, which is worse than an empty column. Where
+there is nothing to check against — a title with no artist — the recording
+that answered is named on screen, and the BPM cell opens a picker to change
+it. Visible and correctable beats confident and wrong.
 
 **5. The sleeve read is what you are waiting for.** BPM and key are a second
 pass, fired once the tracklist is already on screen, six lookups at a time.
