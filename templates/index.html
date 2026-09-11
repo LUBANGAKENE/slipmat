@@ -482,12 +482,16 @@
   }
   td.bpm .key{color:var(--teal);font-weight:600}
   /* Every BPM cell is a way in to "that's the wrong song" - including the
-     blank ones, which is where you most want to search by hand. Underlined
-     on hover rather than given a button of its own: an edit affordance per
-     row would out-shout the numbers, which are what the table is for. */
+     blank ones, which is where you most want to search by hand. A button
+     per row would out-shout the numbers, which are what the table is for -
+     so the affordance is a small pencil after the text instead. It has to
+     stand on its own, not just brighten on hover: hover doesn't exist on
+     the phone this gets used on next to the decks, which is the one place
+     a wrong match is most worth catching. */
   #out td.bpm,#out .p-bpm{cursor:pointer}
-  #out td.bpm:hover,#out .p-bpm:hover{text-decoration:underline dotted;
-    text-underline-offset:3px}
+  #out td.bpm::after,#out .p-bpm::after{content:'\270e';display:inline-block;
+    margin-left:5px;font-size:9px;color:var(--line2);vertical-align:1px}
+  #out td.bpm:hover::after,#out .p-bpm:hover::after{color:var(--dim)}
   /* A track's own artist only ever shows up here for a various-artists
      compilation, where the title cell already wraps for long transcribed
      titles - this follows the same rule rather than truncating. */
