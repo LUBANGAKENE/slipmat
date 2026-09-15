@@ -12,7 +12,7 @@
      only colour that ever means "act". Nothing here breaks that rule. */
   :root{
     --bg:#0E1013; --panel:#14171B; --line:#22262B; --line2:#2A2F35;
-    --ink:#EFEBE1; --dim:#6B7A82;
+    --ink:#EFEBE1; --dim:#8B98A0;
     --red:#E8452B; --red-press:#C8371F; --red-dim:#E8452B55;
     --amber:#E0A32B; --amber-dim:#E0A32B55;
     --teal:#3E8C7E; --teal-dim:#3E8C7E55;
@@ -84,16 +84,25 @@
   @keyframes trkflash{from{background:var(--red-dim)}to{background:transparent}}
   .trk.flash{animation:trkflash 1.6s ease-out}
 
-  @media(max-width:640px){
-    .search{order:5;flex-basis:100%;max-width:none}
-  }
-
   #auth{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px}
+  .auth-fields{display:flex;align-items:center;gap:8px}
+  .auth-toggle{display:none}
   #auth input{background:var(--bg);border:1px solid var(--line2);border-radius:6px;
     color:var(--ink);padding:6px 9px;font-size:13px;width:128px;font-family:var(--font-body)}
   #auth input::placeholder{color:var(--dim)}
   #auth .who{color:var(--dim);font-family:var(--font-mono);font-size:12px}
   #auth .err{color:var(--bad);font-size:12px;max-width:220px}
+
+  @media(max-width:640px){
+    .search{order:5;flex-basis:100%;max-width:none}
+    #auth{flex-basis:100%;order:6;justify-content:flex-end}
+    .auth-toggle{display:inline-flex}
+    #auth:not(.expanded) .auth-fields{display:none}
+    #auth.expanded .auth-toggle{display:none}
+    #auth.expanded .auth-fields{flex-wrap:wrap;justify-content:flex-end;width:100%}
+    #auth input{min-height:44px;flex:1 1 140px}
+    .auth-fields button.ghost{min-height:44px}
+  }
   .profile-btn{width:32px;height:32px;flex:none;border-radius:50%;
     background:var(--line2);border:1px solid var(--line2);color:var(--ink);
     font-family:var(--font-display);font-variation-settings:'wdth' 108,'wght' 800;
@@ -611,7 +620,7 @@
 
       <div class="panel">
         <div id="out"></div>
-        <div class="empty" id="empty">No record scanned yet.</div>
+        <div class="empty" id="empty">Scan a sleeve to see BPM, key, and tracklist here.</div>
         <div class="row" id="saveRow" style="display:none">
           <button class="ghost" id="saveBtn">Save to library</button>
           <span class="status" id="saveStatus"></span>
@@ -1653,11 +1662,14 @@ function renderAuth(){
     $('#search').hidden = false;
   } else {
     el.innerHTML = `
-      <input id="authEmail" type="email" placeholder="email" autocomplete="email">
-      <input id="authPass" type="password" placeholder="password" autocomplete="current-password">
-      <button class="ghost" id="signIn">Sign in</button>
-      <button class="ghost" id="signUp">Sign up</button>
-      <span class="err" id="authErr"></span>`;
+      <button class="ghost auth-toggle" id="authToggle" type="button">Sign in</button>
+      <span class="auth-fields">
+        <input id="authEmail" type="email" placeholder="email" autocomplete="email">
+        <input id="authPass" type="password" placeholder="password" autocomplete="current-password">
+        <button class="ghost" id="signIn">Sign in</button>
+        <button class="ghost" id="signUp">Sign up</button>
+        <span class="err" id="authErr"></span>
+      </span>`;
     $('#tabs').style.display = 'none';
     $('#search').hidden = true;
     // Signing out invalidates both what was loaded and the promise that says
@@ -1675,6 +1687,7 @@ function renderAuth(){
 // handlers that would just be discarded on the next innerHTML replace.
 $('#auth').addEventListener('click', async e => {
   const id = e.target.id;
+  if (id === 'authToggle'){ $('#auth').classList.toggle('expanded'); return; }
   if (id === 'profileBtn'){ showTab('profile'); return; }
   if (id !== 'signIn' && id !== 'signUp') return;
 
@@ -2016,9 +2029,8 @@ $('#track-bubbles').addEventListener('click', e => {
   }
   const bubble = e.target.closest('.bubble[data-id]');
   if (!bubble) return;
-  // Tapping the active one clears the filter, so a bubble is its own toggle.
-  trackFilterPlaylist = trackFilterPlaylist === bubble.dataset.id ? null : bubble.dataset.id;
-  renderTracksPage();
+  showLibraryView('playlists');
+  selectPlaylist(bubble.dataset.id);
 });
 
 $('#track-list').addEventListener('dragstart', e => {
