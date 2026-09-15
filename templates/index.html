@@ -539,6 +539,41 @@
   .col-head .count{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;
     text-transform:uppercase;color:var(--dim)}
 
+  /* The staged readout of what a scan is actually doing: sleeve transcribed,
+     pressing confirmed against Discogs, tempo/key resolved, and (only on a
+     various-artists compilation still missing credits) per-track artists
+     filled in. Four separate requests today read as one "Reading sleeve…"
+     line - this says which of them is running, which already landed, and
+     what each one found, instead of leaving that in the network tab. */
+  .pipeline{display:flex;flex-direction:column;gap:14px;padding-top:16px;
+    border-top:1px solid var(--line)}
+  .pipeline-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--dim)}
+  .pipe-step{display:flex;gap:12px;align-items:flex-start}
+  .pipe-dot{width:16px;height:16px;flex:none;margin-top:1px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;line-height:1;border:2px solid var(--line2)}
+  .pipe-step.done .pipe-dot{border-color:var(--teal);background:var(--teal);
+    color:var(--bg)}
+  .pipe-step.active .pipe-dot{border-color:var(--amber);
+    animation:pipe-pulse 1.4s ease-in-out infinite}
+  .pipe-step.error .pipe-dot{border-color:var(--bad)}
+  @keyframes pipe-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  @media(prefers-reduced-motion:reduce){
+    .pipe-step.active .pipe-dot{animation:none}
+  }
+  .pipe-body{flex:1;min-width:0}
+  .pipe-title{font-size:13.5px;font-weight:500;color:var(--ink)}
+  .pipe-step:not(.done):not(.active) .pipe-title{color:var(--dim)}
+  .pipe-detail{font-family:var(--font-mono);font-size:11px;color:var(--dim);
+    margin-top:2px}
+  .pipe-step.active .pipe-detail{color:var(--amber)}
+  .pipe-step.error .pipe-detail{color:var(--bad)}
+  .pipe-bar{margin-top:7px;height:3px;background:var(--line);border-radius:2px;
+    overflow:hidden}
+  .pipe-bar i{display:block;height:100%;background:var(--amber);
+    transition:width .3s ease-out}
+
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
 
   #drop{border:1.5px dashed var(--line2);border-radius:10px;padding:26px 18px;
@@ -853,6 +888,15 @@
           <button class="ghost" id="clear">Clear</button>
         </div>
         <div class="status" id="status"></div>
+        <!-- What a scan actually is: one sleeve read, then a tempo lookup,
+             then (only on a various-artists compilation missing credits) a
+             third pass for per-track artists. Hidden until go.onclick starts
+             the first of those; renderPipeline() owns every state change
+             from there. -->
+        <div class="pipeline" id="pipeline" hidden>
+          <div class="pipeline-label">Pipeline</div>
+          <div id="pipeline-steps"></div>
+        </div>
       </div>
 
       <div class="scan-col">
@@ -1156,12 +1200,100 @@ window.addEventListener('paste', e =>
 
 $('#clear').onclick = () => { images=[]; render(); status.textContent='';
   out.style.display='none'; empty.style.display='block';
-  lastRecord = null; refreshSaveRow(); };
+  lastRecord = null; refreshSaveRow();
+  $('#pipeline').hidden = true; pipeline = []; };
+
+// ------------------------------------------------------------- pipeline
+// The staged readout in the capture column: what a scan is doing right now,
+// what already landed, and what each pass actually found. Four requests as
+// the client sees it - /api/scan (which does sleeve transcription *and* the
+// Discogs/MusicBrainz pressing lookup server-side, arriving as one response),
+// /api/bpm, and (only on a various-artists compilation still missing
+// per-track credits) /api/track-artists - reduced to one "Reading sleeve…"
+// line before this existed.
+let pipeline = [];
+const pipeStep = id => pipeline.find(s => s.id === id);
+
+function resetPipeline(){
+  pipeline = [
+    {id:'sleeve', title:'Sleeve transcribed', state:'active', detail:'reading…'},
+    {id:'pressing', title:'Pressing confirmed', state:'pending', detail:''},
+    {id:'tempo', title:'Tempo & key', state:'pending', detail:''},
+  ];
+  $('#pipeline').hidden = false;
+  renderPipeline();
+}
+
+function renderPipeline(){
+  $('#pipeline-steps').innerHTML = pipeline.map(s => `
+    <div class="pipe-step ${s.state}">
+      <div class="pipe-dot">${s.state === 'done' ? '✓' : ''}</div>
+      <div class="pipe-body">
+        <div class="pipe-title">${esc(s.title)}</div>
+        ${s.detail ? `<div class="pipe-detail">${esc(s.detail)}</div>` : ''}
+        ${s.bar != null ? `<div class="pipe-bar"><i style="width:${s.bar}%"></i></div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+// Same condition loadTrackArtists() itself bails out on - shared rather than
+// duplicated, so the pipeline never claims a fourth step that pass then
+// silently skips (or vice versa).
+function needsTrackArtists(d){
+  if (!GENERIC_ARTISTS.has((d.artist||'').trim().toLowerCase())) return false;
+  return (d.tracks||[]).some(t => t.title && !t.artist && !t.is_mix);
+}
+
+// The sleeve read and the pressing lookup are one HTTP round trip server-side
+// (vinyl.scan_and_fill runs both before this response lands) - there's no way
+// to observe them finishing at different moments, so both steps complete
+// together here, and tempo/key (and, if this record needs it, per-track
+// artists) flips to active in the same render.
+function advancePipelineAfterScan(d, secs){
+  const tracks = d.tracks || [];
+  const sleeve = pipeStep('sleeve');
+  if (sleeve){
+    sleeve.state = 'done';
+    sleeve.detail = `${d._model||'model'} · ${tracks.length} `
+      + `track${tracks.length===1?'':'s'} found · ${secs.toFixed(1)}s`;
+  }
+  const pressing = pipeStep('pressing');
+  if (pressing){
+    pressing.state = 'done';
+    const parts = [];
+    if (d.tracklist_source === 'sleeve') parts.push('back cover wins');
+    else if (d.tracklist_source) parts.push(d.tracklist_source);
+    if (d.release_source) parts.push(d.release_source);
+    pressing.detail = parts.length ? parts.join(' · ') : 'no catalogue match';
+  }
+  const named = tracks.filter(t => t.title && !t.is_mix);
+  const tempo = pipeStep('tempo');
+  if (tempo){
+    tempo.state = named.length ? 'active' : 'pending';
+    tempo.detail = named.length ? 'reccobeats · resolving…' : 'nothing to resolve';
+  }
+  if (needsTrackArtists(d)){
+    pipeline.push({id:'artists', title:'Per-track artists', state:'active',
+      detail:'musicbrainz · resolving…'});
+  }
+  renderPipeline();
+}
+
+// Whichever step was in flight when the request failed is the one the error
+// belongs to - everything after it never got a chance to run.
+function failPipelineStep(message){
+  const step = pipeline.find(s => s.state === 'active');
+  if (!step) return;
+  step.state = 'error';
+  step.detail = message;
+  renderPipeline();
+}
 
 go.onclick = async () => {
   go.disabled = true;
   status.className = 'status';
   status.textContent = 'Reading sleeve…';
+  resetPipeline();
   const t0 = performance.now();
   try{
     const r = await fetch('/api/scan', {method:'POST',
@@ -1169,11 +1301,14 @@ go.onclick = async () => {
       body: JSON.stringify({images})});
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || ('HTTP '+r.status));
-    show(d, (performance.now()-t0)/1000);
+    const secs = (performance.now()-t0)/1000;
+    advancePipelineAfterScan(d, secs);
+    show(d, secs);
     status.textContent = '';
   } catch(err){
     status.className = 'status err';
     status.textContent = err.message;
+    failPipelineStep(err.message);
   } finally { go.disabled = images.length===0; }
 };
 
@@ -1304,13 +1439,37 @@ async function loadBpm(d){
       if (entries[i]) applyBpmToCell(entries[i], f);
     });
     renderScanTags(d, true);
+    finishTempoPipelineStep(d);
   } catch(err){
     if (run !== bpmRun) return;
     entries.forEach((e,i)=>{
       if(cells[i]) cells[i].textContent = e.isMix ? 'mix' : 'no tempo';
     });
     console.warn('bpm lookup failed:', err.message);
+    const tempo = pipeStep('tempo');
+    if (tempo){
+      tempo.state = 'error';
+      tempo.detail = 'reccobeats · ' + err.message;
+      renderPipeline();
+    }
   }
+}
+
+// Same "which tracks actually count" rule renderScanTags already applies -
+// a mix's own title was never going to resolve, so it isn't counted as a
+// miss here either. Reads t.bpm back off d.tracks rather than re-deriving
+// it, since applyBpmToCell() just finished writing it there.
+function finishTempoPipelineStep(d){
+  const tempo = pipeStep('tempo');
+  if (!tempo) return;
+  const named = (d.tracks||[]).filter(t => t.title && !t.is_mix);
+  const resolved = named.filter(t => t.bpm != null).length;
+  tempo.state = 'done';
+  tempo.detail = named.length
+    ? `reccobeats · ${resolved} of ${named.length} resolved`
+    : 'reccobeats · nothing to resolve';
+  tempo.bar = named.length ? Math.round(resolved / named.length * 100) : null;
+  renderPipeline();
 }
 
 // Paint one track's numbers into its cell, and write them back onto the track
@@ -1627,6 +1786,7 @@ async function loadTrackArtists(d){
   if (!missing.length) return;
 
   const run = ++artistsRun;
+  let found = 0;
   try{
     const r = await fetch('/api/track-artists', {method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1637,6 +1797,7 @@ async function loadTrackArtists(d){
 
     (body.results||[]).forEach((artist, idx) => {
       if (!artist) return;
+      found++;
       const { t, i } = missing[idx];
       // Written back onto the track itself, not just painted into the DOM -
       // Save to library reads from here too, same as BPM.
@@ -1656,9 +1817,23 @@ async function loadTrackArtists(d){
           + `${esc(artist)}</div>`);
       }
     });
+    const artistsStep = pipeStep('artists');
+    if (artistsStep){
+      artistsStep.state = 'done';
+      artistsStep.detail = found
+        ? `musicbrainz · ${found} of ${missing.length} found`
+        : `musicbrainz · no additional artists found`;
+      renderPipeline();
+    }
   } catch(err){
     if (run !== artistsRun) return;
     console.warn('track-artist lookup failed:', err.message);
+    const artistsStep = pipeStep('artists');
+    if (artistsStep){
+      artistsStep.state = 'error';
+      artistsStep.detail = 'musicbrainz · ' + err.message;
+      renderPipeline();
+    }
   }
 }
 
