@@ -23,11 +23,32 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.5 var(--font-body)}
-  .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px}
+    font:15px/1.5 var(--font-body);-webkit-font-smoothing:antialiased}
 
-  header{display:flex;align-items:center;gap:14px;margin-bottom:22px;flex-wrap:wrap}
-  .brandmark{position:relative;width:26px;aspect-ratio:1/1;border-radius:50%;
+  /* App shell. Not a 1000px reading column any more: the two screens here
+     are a workbench (Scan) and a crate (Library), and both want the width of
+     whatever they were opened on. The stage still caps at 1440 so a wide
+     monitor doesn't stretch a track row out to arm's length, and the top bar
+     stays put while either screen scrolls under it. */
+  .app{min-height:100vh;display:flex;flex-direction:column}
+  .stage{flex:1;width:100%;max-width:1440px;margin:0 auto;
+    padding:clamp(16px,2.2vw,26px) clamp(14px,2.2vw,22px) 56px}
+
+  .topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;
+    gap:12px;flex-wrap:wrap;padding:10px clamp(14px,2.2vw,22px);
+    background:var(--bg);border-bottom:1px solid var(--line)}
+  /* Scoped to the wide layout on purpose. backdrop-filter makes the element
+     the containing block for any position:fixed descendant, and below 700px
+     #tabs *is* a fixed descendant - it becomes the bottom tab bar. Blurring
+     the top bar there would nail the tab bar back into the header. */
+  @media(min-width:701px){
+    @supports (backdrop-filter:blur(2px)){
+      .topbar{background:#0E1013D9;backdrop-filter:blur(14px)}
+    }
+  }
+  .brand{display:flex;align-items:center;gap:10px;flex:none;
+    color:inherit;text-decoration:none}
+  .brandmark{position:relative;width:24px;aspect-ratio:1/1;border-radius:50%;
     background:var(--ink);flex:none}
   .brandmark:before{content:"";position:absolute;inset:0;border-radius:50%;
     background:repeating-radial-gradient(circle at 50% 50%,#D5CFC0 0 1.5px,var(--ink) 1.5px 3.5px)}
@@ -35,14 +56,14 @@
     transform:translate(-50%,-50%);width:46%;aspect-ratio:1/1;border-radius:50%;
     background:var(--red);box-shadow:0 0 0 2px var(--ink) inset}
   h1{font-family:var(--font-display);font-variation-settings:'wdth' 116,'wght' 800;
-    font-size:19px;margin:0;letter-spacing:-.02em;text-transform:uppercase;
+    font-size:17px;margin:0;letter-spacing:-.02em;text-transform:uppercase;
     color:var(--ink)}
-  header .sub{color:var(--dim);font-size:13px}
 
   /* Global search: one box in the header, so it's on every page. Everything
      it searches is already in memory (loadLibrary pulls albums with their
      tracks in one go), so suggestions are instant with no round trip. */
-  .search{position:relative;flex:1 1 240px;max-width:400px;min-width:170px}
+  .search{position:relative;flex:1 1 200px;max-width:380px;min-width:150px;
+    margin-inline:auto}
   .search-box{display:flex;align-items:center;gap:8px;background:var(--panel);
     border:1px solid var(--line2);border-radius:999px;padding:7px 12px}
   .search-box:focus-within{border-color:var(--dim)}
@@ -93,10 +114,16 @@
   #auth .who{color:var(--dim);font-family:var(--font-mono);font-size:12px}
   #auth .err{color:var(--bad);font-size:12px;max-width:220px}
 
-  @media(max-width:640px){
-    .search{order:5;flex-basis:100%;max-width:none}
-    #auth{flex-basis:100%;order:6;justify-content:flex-end}
-    .auth-toggle{display:inline-flex}
+  @media(max-width:700px){
+    .search{order:5;flex-basis:100%;max-width:none;margin-inline:0}
+    /* Only the signed-out form needs a row of its own - once it's a single
+       avatar it belongs beside the wordmark, not on a line by itself. */
+    #auth:has(.auth-fields){flex-basis:100%;order:6;justify-content:flex-end}
+    /* The toggle lives outside .auth-fields, so it needs the 44pt floor
+       spelled out for it the way the fields below already have it. Written
+       as #auth .auth-toggle rather than .auth-toggle so it outranks the
+       button.ghost defaults, which are declared further down the sheet. */
+    #auth .auth-toggle{display:inline-flex;align-items:center;min-height:44px}
     #auth:not(.expanded) .auth-fields{display:none}
     #auth.expanded .auth-toggle{display:none}
     #auth.expanded .auth-fields{flex-wrap:wrap;justify-content:flex-end;width:100%}
@@ -111,21 +138,71 @@
   .profile-label{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.16em;
     text-transform:uppercase;color:var(--dim)}
 
-  .tabs{display:none;gap:6px;margin-bottom:16px}
-  .tab{background:transparent;border:1px solid var(--line2);color:var(--dim);
-    border-radius:999px;padding:8px 16px;font-family:var(--font-mono);font-size:11px;
+  /* One control, two shapes. On a desktop it's a segmented pill sitting next
+     to the wordmark; on a phone it's the bottom tab bar, because this app
+     gets used standing at a deck with a record in the other hand and the
+     thumb only reaches so far. Same markup either way, so renderAuth() can
+     still show and hide the whole thing with one display toggle. */
+  .tabs{display:none;gap:3px;flex:none;margin:0;padding:3px;
+    background:var(--panel);border:1px solid var(--line);border-radius:999px}
+  .tab{display:flex;align-items:center;justify-content:center;gap:7px;
+    background:transparent;border:0;color:var(--dim);border-radius:999px;
+    padding:8px 17px;font-family:var(--font-mono);font-size:11px;
     letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
-  .tab.active{border-color:var(--red);color:var(--red)}
+  .tab:hover{color:var(--ink)}
+  .tab.active{background:var(--red);color:#140C09}
+  .tab .ico{display:none;font-size:16px;line-height:1}
 
-  .lib-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .lib-header{display:flex;align-items:baseline;justify-content:space-between;
+    gap:12px;flex-wrap:wrap;margin-bottom:14px}
   .lib-header h2{font-family:var(--font-display);font-variation-settings:'wdth' 112,'wght' 800;
-    font-size:20px;margin:0;letter-spacing:-.03em;text-transform:uppercase;color:var(--ink)}
+    font-size:clamp(20px,2.6vw,26px);margin:0;letter-spacing:-.03em;
+    text-transform:uppercase;color:var(--ink)}
 
-  .pillbar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
-  .pill-filter{background:var(--panel);border:1px solid var(--line2);color:var(--dim);
+  /* Library shell: a persistent rail on a desktop, where there's room to keep
+     the content types and the playlist tree in reach at all times, and the
+     same buttons as one scrolling row of pills on anything narrower. The DOM
+     is identical in both - only the CSS box changes - so nothing in the
+     click handling has to know which one it's looking at. */
+  .lib-layout{display:grid;grid-template-columns:minmax(0,1fr);
+    gap:clamp(14px,2vw,20px);align-items:start}
+  /* Spans both columns, so it's the page's title rather than the content
+     pane's - and on a phone, where the rail stacks above the content, it
+     still lands first instead of after the filters. */
+  .lib-layout>.lib-header{grid-column:1/-1}
+  .lib-rail{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .lib-content{min-width:0}
+
+  .pillbar{display:flex;gap:8px;margin:0;align-items:center;
+    overflow-x:auto;padding-bottom:4px;scrollbar-width:none;
+    -webkit-overflow-scrolling:touch}
+  .pillbar::-webkit-scrollbar{display:none}
+  .pill-filter{flex:none;display:flex;align-items:center;gap:8px;min-height:40px;
+    background:var(--panel);border:1px solid var(--line2);color:var(--dim);
     border-radius:999px;padding:8px 16px;font-family:var(--font-mono);font-size:11px;
-    letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+    letter-spacing:.14em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+  .pill-filter:hover{border-color:var(--dim)}
   .pill-filter.active{background:var(--red);color:#140C09;border-color:var(--red)}
+  .pill-filter .ico{display:none}
+  .pill-count{font-family:var(--font-mono);font-size:11px;color:var(--dim)}
+  .pill-filter.active .pill-count{color:#140C09;opacity:.7}
+
+  /* Crate coverage — the project's own yardstick, so it belongs on the
+     library rather than buried. Full card at the foot of the rail on a
+     desktop, one line above the filters on a phone. */
+  .coverage{border:1px solid var(--line);border-radius:9px;padding:14px;
+    display:flex;flex-direction:column;gap:8px}
+  .coverage:empty{display:none}
+  .coverage .lbl{font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--dim)}
+  .coverage .num{display:flex;align-items:baseline;gap:6px}
+  .coverage .num b{font-family:var(--font-display);font-weight:400;
+    font-variation-settings:'wdth' 118,'wght' 800;font-size:30px;line-height:1;
+    letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .coverage .num span{font-family:var(--font-mono);font-size:12px;color:var(--dim)}
+  .coverage .bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+  .coverage .bar i{display:block;height:100%;background:var(--amber)}
+  .coverage .note{font-size:12.5px;line-height:1.5;color:var(--dim)}
   .chip{background:var(--bg);border:1px solid var(--red);color:var(--red);
     border-radius:999px;padding:6px 12px;font-family:var(--font-mono);font-size:11px;
     letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
@@ -136,7 +213,8 @@
   .track-bubbles{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;
     padding-bottom:4px;-webkit-overflow-scrolling:touch}
   .track-bubbles::-webkit-scrollbar{display:none}
-  .bubble{flex:none;background:var(--panel);border:1px solid var(--line2);
+  .bubble{flex:none;display:inline-flex;align-items:center;min-height:38px;
+    background:var(--panel);border:1px solid var(--line2);
     color:var(--ink);border-radius:999px;padding:8px 15px;font-size:13px;
     font-family:var(--font-body);cursor:pointer;white-space:nowrap}
   .bubble:hover{border-color:var(--dim)}
@@ -144,14 +222,14 @@
   .bubble.drag-over{outline:2px solid var(--red);outline-offset:2px;
     background:#E8452B22;border-color:var(--red)}
   .bubble.drag-added{background:var(--line2);transition:background .3s}
-  .bubble-add{width:34px;height:34px;padding:0;display:flex;align-items:center;
+  .bubble-add{width:38px;height:38px;padding:0;display:flex;align-items:center;
     justify-content:center;font-size:19px;line-height:1;border-radius:50%;
     border-style:dashed;color:var(--dim)}
   .bubble-add:hover{border-color:var(--dim);color:var(--ink)}
 
   #track-list,#track-list-all{background:var(--panel);border:1px solid var(--line);
     border-radius:10px;overflow:hidden}
-  .trk{display:flex;align-items:center;gap:12px;padding:9px 12px;
+  .trk{display:flex;align-items:center;gap:12px;padding:9px 12px;min-height:62px;
     border-bottom:1px solid #1A1E23}
   .trk:last-child{border-bottom:0}
   .trk:hover{background:#171B20}
@@ -166,13 +244,14 @@
     overflow:hidden;text-overflow:ellipsis}
   .trk .t-artist{font-size:12.5px;color:var(--dim);white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-  .trk .nums{flex:none;text-align:right;font-family:var(--font-mono);font-size:12px;
-    line-height:1.45}
-  .trk .nums .bpm{color:var(--amber)}
+  .trk .nums{flex:none;text-align:right;font-family:var(--font-mono);font-size:12.5px;
+    line-height:1.4}
+  .trk .nums .bpm{color:var(--amber);font-size:14px}
   .trk .nums .key{color:var(--teal);font-weight:600}
   .trk .nums .none{color:var(--line2)}
-  .trk-menu{flex:none;background:transparent;border:0;color:var(--dim);
-    font-size:17px;line-height:1;cursor:pointer;padding:6px 4px;border-radius:6px}
+  .trk-menu{flex:none;display:flex;align-items:center;justify-content:center;
+    width:36px;height:36px;background:transparent;border:0;color:var(--dim);
+    font-size:17px;line-height:1;cursor:pointer;padding:0;border-radius:6px}
   .trk-menu:hover{color:var(--ink)}
 
   /* Sits between the bubbles and the list - BPM/Key stay clickable the way
@@ -400,7 +479,7 @@
     overflow:hidden;text-overflow:ellipsis}
   .pl-grid-item.all-tracks .pl-grid-sub{color:#fff9}
 
-  .cover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  .cover-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
     gap:16px}
   .cover-card{background:var(--panel);border:1px solid var(--line);border-radius:9px;
     padding:10px;cursor:pointer;transition:.15s}
@@ -414,6 +493,15 @@
     -webkit-line-clamp:2;-webkit-box-orient:vertical}
   .cover-card .t-artist{color:var(--dim);font-size:12px;margin-top:3px;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* A cover grid you can read in a dark booth: the tempo span this record
+     covers, how many keys are on it, and how many tracks - so picking the
+     next one off the wall is a glance rather than four clicks. A record with
+     nothing resolved says so, which is the one worth knowing about. */
+  .cover-card .stats{display:flex;gap:9px;flex-wrap:wrap;margin-top:8px;
+    padding-top:7px;border-top:1px solid var(--line);
+    font-family:var(--font-mono);font-size:11px;color:var(--dim)}
+  .cover-card .stats .s-bpm{color:var(--amber)}
+  .cover-card .stats .s-key{color:var(--teal)}
 
   .lib-cover{width:52px;height:52px;border-radius:6px;overflow:hidden;flex:none;
     background:var(--bg);display:flex;align-items:center;justify-content:center;
@@ -421,8 +509,35 @@
   .lib-cover img{width:100%;height:100%;object-fit:cover;display:block}
   .rel.with-cover{display:flex;gap:12px;align-items:flex-start}
 
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  /* Scan is a workbench: a narrow fixed capture column on the left and the
+     reading it produced filling whatever is left. One hairline between them
+     rather than two floating cards, so the two halves read as one surface -
+     the second half is what the first half made. Below 900px there isn't
+     room for both side by side, so they stack, capture first. */
+  /* No overflow:hidden here, tempting as it is for the rounded corners: it
+     would make this element a scrollport, and the sticky capture column
+     below would then measure its offset against *this* box rather than the
+     viewport - sticking 60px down and staying there at every scroll
+     position. The columns paint in --bg, the same colour as the page, so
+     there are no square corners to clip anyway. */
+  .scan-layout{display:grid;grid-template-columns:minmax(0,1fr);
+    border:1px solid var(--line);border-radius:12px}
+  .scan-col{background:var(--bg);min-width:0;display:flex;flex-direction:column;
+    gap:14px;padding:clamp(16px,1.8vw,22px)}
+  @media(min-width:900px){
+    .scan-layout{grid-template-columns:minmax(300px,392px) minmax(0,1fr)}
+    /* Capture stays put while a long tracklist scrolls past it, which means
+       it doesn't stretch to the row's height - so the divider hangs off the
+       reading column, which does. */
+    .scan-col.capture{position:sticky;top:60px;align-self:start}
+    .scan-col+.scan-col{border-left:1px solid var(--line)}
+  }
+  .col-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .col-head h2{margin:0;font-family:var(--font-display);
+    font-variation-settings:'wdth' 112,'wght' 800;font-size:17px;
+    letter-spacing:-.02em;text-transform:uppercase;color:var(--ink)}
+  .col-head .count{font-family:var(--font-mono);font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--dim)}
 
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
 
@@ -432,37 +547,61 @@
   #drop b{color:var(--ink);font-weight:600}
   #drop .hint{display:block;margin-top:6px;font-size:12.5px}
 
-  #thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
-  .thumb{position:relative;width:88px;height:88px;border-radius:7px;overflow:hidden;
+  /* Four shots max, so a 2x2 of squares rather than a wrapping strip of
+     88px chips - it fills the capture column at any width and the shots end
+     up big enough to tell a back cover from a centre label at a glance. */
+  #thumbs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
+  #thumbs:empty{display:none}
+  .thumb{position:relative;aspect-ratio:1/1;border-radius:8px;overflow:hidden;
     border:1px solid var(--line2)}
   .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-  .thumb button{position:absolute;top:3px;right:3px;width:20px;height:20px;
-    border:0;border-radius:50%;background:#000a;color:#fff;cursor:pointer;
-    font-size:13px;line-height:20px;padding:0}
+  .thumb button{position:absolute;top:5px;right:5px;width:26px;height:26px;
+    border:0;border-radius:50%;background:#000000b3;color:#fff;cursor:pointer;
+    font-size:15px;line-height:26px;padding:0}
 
-  .row{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  .row{display:flex;gap:10px;align-items:center;margin:0;flex-wrap:wrap}
   button.go{background:var(--red);color:#140C09;border:0;border-radius:999px;
-    padding:11px 22px;font-family:var(--font-display);font-variation-settings:'wdth' 108,'wght' 800;
+    min-height:44px;padding:11px 22px;font-family:var(--font-display);font-variation-settings:'wdth' 108,'wght' 800;
     font-size:14px;letter-spacing:.02em;text-transform:uppercase;cursor:pointer}
+  button.go:hover:not(:disabled){background:var(--red-press)}
   button.go:disabled{background:var(--red-dim);color:#00000066;cursor:not-allowed}
   button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2);
-    border-radius:999px;padding:10px 16px;cursor:pointer;font-family:var(--font-mono);
-    font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+    border-radius:999px;padding:10px 16px;min-height:40px;cursor:pointer;
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase}
   button.ghost:hover{border-color:var(--dim)}
+  /* Scan is the primary action on this screen, so it takes the width the row
+     has going spare; Clear stays the size of its own label. */
+  #scan-view .row button.go{flex:1 1 auto}
+  #scan-view .row button.ghost{min-height:44px}
 
-  .status{color:var(--dim);font-size:13px;min-height:19px;margin-top:10px}
+  .status{color:var(--dim);font-size:13px;min-height:19px;margin:0}
   .status.err{color:var(--bad)}
   .status.ok{color:var(--ok)}
 
-  #out{display:none;margin-top:18px}
-  .rel{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:6px}
+  #out{display:none;margin:0}
+  .rel{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:6px}
   .rel .artist{color:var(--red);font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
     text-transform:uppercase;font-weight:500}
   .rel .album{font-family:var(--font-display);font-variation-settings:'wdth' 112,'wght' 800;
-    font-size:25px;margin:5px 0 7px;line-height:1.15;letter-spacing:-.02em;
-    text-transform:uppercase;color:var(--ink)}
-  .rel .meta{color:var(--dim);font-size:13px}
+    font-size:clamp(23px,3.2vw,29px);margin:6px 0 8px;line-height:1.05;
+    letter-spacing:-.025em;text-transform:uppercase;color:var(--ink);
+    overflow-wrap:anywhere}
+  .rel .meta{color:var(--dim);font-family:var(--font-mono);font-size:12px}
   .rel .meta span+span:before{content:"·";margin:0 8px;color:var(--line2)}
+
+  /* What the chain is and isn't sure about, said at the top of the reading
+     rather than in small print under the table. Confidence, where the
+     tracklist actually came from, and - the one that decides whether a
+     number is usable - how many tracks came back without a tempo at all. */
+  .rel-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;
+    font-family:var(--font-mono);font-size:11px}
+  .rel-tags span{padding:3px 10px;border-radius:999px;border:1px solid var(--line2);
+    color:var(--dim)}
+  .rel-tags span.high{color:var(--teal);border-color:var(--teal-dim)}
+  .rel-tags span.medium{color:var(--amber);border-color:var(--amber-dim)}
+  .rel-tags span.low{color:var(--bad);border-color:var(--red-dim)}
+  .rel-tags span.gap{color:var(--amber);border-color:var(--amber-dim)}
 
   table{width:100%;border-collapse:collapse;margin-top:6px;table-layout:fixed}
   /* baseline pins every cell to the *first* line of whichever cell wraps
@@ -475,19 +614,38 @@
   td{padding:8px 6px;border-bottom:1px solid #1A1E23;vertical-align:top;
     overflow-wrap:break-word}
   tr:last-child td{border-bottom:0}
-  td.pos{width:34px;color:var(--dim);font-weight:600;
+  td.pos{width:38px;color:var(--dim);font-weight:600;
     font-family:var(--font-mono);font-size:13px}
-  td.dur{width:46px;text-align:right;color:var(--dim);
+  td.dur{width:52px;text-align:right;color:var(--dim);
     font-family:var(--font-mono);font-size:13px}
-  td.bpm{width:70px;text-align:right;color:var(--line2);font-size:12px;font-style:italic}
-  td.bpm.got{color:var(--amber);font-style:normal;
-    font-family:var(--font-mono);font-size:12.5px}
-  /* Duration is the least essential of the four columns on a narrow phone -
+  /* The two numbers this app exists to produce were sharing a 70px column
+     with an italic em-dash. Wider, and set in the mono face at the size the
+     rest of the data uses, so they read as the answer rather than as a
+     footnote to the title next to them. */
+  td.bpm{width:112px;text-align:right;color:var(--dim);font-size:12px;
+    font-family:var(--font-mono);line-height:1.45}
+  td.bpm.got{color:var(--amber);font-size:13.5px}
+  /* Under 700px a four-column table stops holding its shape: the title wraps
+     to three lines while position and tempo float at the top of the row,
+     visually detached from it. Each <tr> becomes a grid card instead, with
+     position and tempo pinned to the first line and the title (plus any
+     nested mix parts) filling the middle. Duration is the column that goes -
      position and BPM/key are what the README's own "where to drop the
-     needle" promise is actually about. Freeing its width gives the title
-     column meaningfully more room before it needs to wrap at all. */
-  @media(max-width:480px){
-    td.dur{display:none}
+     needle" promise is actually about. */
+  @media(max-width:700px){
+    #out table,#library-panel table,
+    #out tbody,#library-panel tbody{display:block}
+    #out tr,#library-panel tr{display:grid;
+      grid-template-columns:30px minmax(0,1fr) auto;
+      column-gap:10px;row-gap:3px;align-items:start;
+      min-height:62px;padding:12px 0;border-bottom:1px solid #1A1E23}
+    #out tr:last-child,#library-panel tr:last-child{border-bottom:0}
+    #out td,#library-panel td{display:block;width:auto;padding:0;border:0}
+    #out tr>td.pos,#library-panel tr>td.pos{grid-area:1/1}
+    #out tr>td:nth-child(2),#library-panel tr>td:nth-child(2){grid-area:1/2}
+    #out tr>td.dur,#library-panel tr>td.dur{display:none}
+    #out tr>td.bpm,#library-panel tr>td.bpm{grid-area:1/3;justify-self:end}
+    #out tr>td.empty,#library-panel tr>td.empty{grid-column:1/-1}
   }
   td.bpm .key{color:var(--teal);font-weight:600}
   /* Every BPM cell is a way in to "that's the wrong song" - including the
@@ -566,22 +724,100 @@
   .foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
     margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
     color:var(--dim);font-family:var(--font-mono);font-size:11px;letter-spacing:.04em}
-  .pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11.5px;
-    border:1px solid var(--line2)}
-  .pill.high{color:var(--teal);border-color:var(--teal-dim)}
-  .pill.medium{color:var(--amber);border-color:var(--amber-dim)}
-  .pill.low{color:var(--bad);border-color:var(--red-dim)}
   .notes{color:var(--dim);font-size:12.5px;margin-top:8px;font-style:italic}
   .empty{color:var(--dim);text-align:center;padding:26px 0;font-size:13.5px}
+  /* The reading column before there is a reading. margin-block:auto centres it
+     in the column the grid has already stretched to match the capture side,
+     so an empty right-hand half reads as waiting rather than as broken. */
+  #empty{margin-block:auto;margin-inline:auto;max-width:34ch;padding:48px 8px}
+
+  /* --------------------------------------------------------- layout modes
+     One set of markup, three shapes.
+
+       ≥1080  desktop — the library filters become a persistent rail with
+                        crate coverage pinned to its foot.
+       900+   the scan screen splits into capture | reading.
+       ≤700   phone   — one column, the tab bar moves to the thumb, and every
+                        control clears 44pt.
+
+     Nothing below changes what any element *is*, only the box it sits in, so
+     every delegated click handler keeps working across all three. */
+
+  @media(min-width:1080px){
+    .lib-layout{grid-template-columns:236px minmax(0,1fr);gap:0}
+    .lib-rail{position:sticky;top:62px;align-self:start;gap:20px;
+      min-height:calc(100vh - 150px);max-height:calc(100vh - 82px);
+      overflow-y:auto;padding:2px 16px 4px 0;margin-right:20px;
+      border-right:1px solid var(--line)}
+    /* Same four buttons, no longer shaped like something to tap through -
+       in a rail they're a place you already are, so they read as list rows
+       and stop competing with the covers for the eye. */
+    .pillbar{flex-direction:column;align-items:stretch;gap:2px;
+      overflow:visible;padding-bottom:0}
+    .pill-filter{width:100%;min-height:0;background:transparent;border:0;
+      border-radius:7px;padding:9px 12px;color:#B9BEC2;
+      font-family:var(--font-body);font-size:14px;letter-spacing:0;
+      text-transform:none;text-align:left}
+    .pill-filter:hover{background:var(--panel);color:var(--ink)}
+    .pill-filter.active{background:#1A1F24;color:var(--ink)}
+    .pill-filter .ico{display:inline-block;flex:none;width:15px;
+      text-align:center;color:var(--dim);font-size:13px}
+    .pill-filter.active .ico{color:var(--red)}
+    .pill-count{margin-left:auto}
+    .pill-filter.active .pill-count{color:var(--dim);opacity:1}
+    #library-chip:not(:empty){margin-top:10px}
+    .coverage{margin-top:auto}
+  }
+
+  /* Without a rail to sit at the foot of, coverage becomes one line above the
+     filters instead of a card beside them - the number is still the first
+     thing said about the library, which is the point of it. */
+  @media(max-width:1079px){
+    .coverage{order:-1;flex-direction:row;align-items:center;gap:12px;
+      padding:11px 14px}
+    .coverage .lbl,.coverage .note{display:none}
+    .coverage .num b{font-size:22px}
+    .coverage .bar{flex:1;min-width:56px}
+  }
+
+  @media(max-width:700px){
+    .stage{padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+    .topbar{gap:10px;padding:9px 14px}
+    .tabs{position:fixed;left:0;right:0;bottom:0;z-index:45;gap:0;
+      padding:0 0 env(safe-area-inset-bottom);border:0;border-radius:0;
+      border-top:1px solid var(--line);background:var(--bg)}
+    .tab{flex:1;flex-direction:column;gap:5px;border-radius:0;
+      padding:10px 0 12px;font-size:9.5px}
+    .tab.active{background:transparent;color:var(--red)}
+    .tab .ico{display:block}
+    /* Two stacked cards read better than one tall hairline-split slab once
+       the columns are on top of each other. */
+    .scan-layout{gap:16px;background:transparent;border:0;border-radius:0}
+    .scan-col{background:var(--panel);border:1px solid var(--line);
+      border-radius:12px;padding:16px}
+    .trk{padding:10px}
+    .trk .play-btn{width:26px;height:26px;font-size:9px}
+    .sort-chip{min-height:36px}
+    .pl-browse-toggle{width:38px;height:38px}
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="app">
 
-  <header>
-    <div class="brandmark" aria-hidden="true"></div>
-    <h1>Slipmat</h1>
-    <span class="sub">photograph a record &rarr; artist, album, tracklist</span>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brandmark" aria-hidden="true"></span>
+      <h1>Slipmat</h1>
+    </a>
+    <nav class="tabs" id="tabs" aria-label="Sections">
+      <button class="tab active" data-tab="scan">
+        <span class="ico" aria-hidden="true">&#9673;</span><span>Scan</span>
+      </button>
+      <button class="tab" data-tab="library">
+        <span class="ico" aria-hidden="true">&#9835;</span><span>Library</span>
+      </button>
+    </nav>
     <div class="search" id="search" hidden>
       <div class="search-box">
         <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -596,14 +832,15 @@
     <div id="auth"></div>
   </header>
 
-  <nav class="tabs" id="tabs">
-    <button class="tab active" data-tab="scan">Scan</button>
-    <button class="tab" data-tab="library">Library</button>
-  </nav>
+  <main class="stage">
 
   <section id="scan-view">
-    <div class="grid">
-      <div class="panel">
+    <div class="scan-layout">
+      <div class="scan-col capture">
+        <div class="col-head">
+          <h2>Capture</h2>
+          <span class="count" id="shot-count">0 of 4 shots</span>
+        </div>
         <div id="drop">
           <b>Drop photos, or tap to choose</b>
           <span class="hint">Front sleeve identifies it &middot; back cover has the tracklist</span>
@@ -618,7 +855,7 @@
         <div class="status" id="status"></div>
       </div>
 
-      <div class="panel">
+      <div class="scan-col">
         <div id="out"></div>
         <div class="empty" id="empty">Scan a sleeve to see BPM, key, and tracklist here.</div>
         <div class="row" id="saveRow" style="display:none">
@@ -630,16 +867,37 @@
   </section>
 
   <section id="library-view" style="display:none">
+   <div class="lib-layout">
     <div class="lib-header">
       <h2>Your Library</h2>
     </div>
-    <nav class="pillbar" id="library-pills">
-      <button class="pill-filter active" data-view="albums">Albums</button>
-      <button class="pill-filter" data-view="artists">Artists</button>
-      <button class="pill-filter" data-view="tracks">Tracks</button>
-      <button class="pill-filter" data-view="playlists">Playlists</button>
-      <span id="library-chip"></span>
-    </nav>
+    <!-- Four buttons and a coverage readout. A rail on a desktop, a scrolling
+         pill row on anything narrower - see "layout modes" in the stylesheet.
+         The markup does not change between the two. -->
+    <aside class="lib-rail">
+      <nav class="pillbar" id="library-pills">
+        <button class="pill-filter active" data-view="albums">
+          <span class="ico" aria-hidden="true">&#9673;</span><span>Albums</span>
+          <span class="pill-count" data-count="albums"></span>
+        </button>
+        <button class="pill-filter" data-view="artists">
+          <span class="ico" aria-hidden="true">&#9677;</span><span>Artists</span>
+          <span class="pill-count" data-count="artists"></span>
+        </button>
+        <button class="pill-filter" data-view="tracks">
+          <span class="ico" aria-hidden="true">&#9835;</span><span>Tracks</span>
+          <span class="pill-count" data-count="tracks"></span>
+        </button>
+        <button class="pill-filter" data-view="playlists">
+          <span class="ico" aria-hidden="true">&#9636;</span><span>Playlists</span>
+          <span class="pill-count" data-count="playlists"></span>
+        </button>
+        <span id="library-chip"></span>
+      </nav>
+      <div class="coverage" id="coverage"></div>
+    </aside>
+
+    <div class="lib-content">
     <div class="cover-grid" id="library-grid"></div>
     <div id="library-tracks" style="display:none">
       <!-- Hidden until the first renderTrackBubbles() call, which happens
@@ -667,6 +925,8 @@
     <div class="panel" id="library-panel" style="display:none">
       <div class="empty">No saved albums yet.</div>
     </div>
+    </div>
+   </div>
   </section>
 
   <section id="profile-view" style="display:none">
@@ -677,6 +937,8 @@
       <button class="ghost" id="profileSignOut" style="margin-top:18px">Sign out</button>
     </div>
   </section>
+
+  </main>
 </div>
 
 <div class="sheet-backdrop" id="sheet-backdrop"></div>
@@ -840,8 +1102,12 @@ document.addEventListener('click', e => {
 
 function render(){
   thumbs.innerHTML = images.map((src,i)=>
-    `<div class="thumb"><img src="${src}"><button data-i="${i}">&times;</button></div>`).join('');
+    `<div class="thumb"><img src="${src}" alt=""><button data-i="${i}"
+       aria-label="Remove photo ${i+1}">&times;</button></div>`).join('');
   go.disabled = images.length === 0;
+  // Four is the cap add() enforces; saying so up front beats silently
+  // ignoring a fifth drop.
+  $('#shot-count').textContent = `${images.length} of 4 shots`;
 }
 thumbs.onclick = e => {
   if (e.target.dataset.i !== undefined){ images.splice(+e.target.dataset.i,1); render(); }
@@ -938,29 +1204,55 @@ function show(d, secs){
            : 'No tracklist found &mdash; photograph the back cover.'
        }</td></tr>`;
 
-  const conf = esc(d.confidence||'?');
   out.innerHTML = `
     <div class="rel">
       <div class="artist">${esc(d.artist||'Unknown artist')}</div>
       <div class="album">${esc(d.album||'Unknown album')}</div>
       <div class="meta">${meta||'<span>no pressing details read</span>'}</div>
+      <div class="rel-tags" id="rel-tags"></div>
     </div>
     <table>${rows}</table>
     ${d.notes ? `<div class="notes">${esc(d.notes)}</div>` : ''}
     <div class="foot">
-      <span>confidence <span class="pill ${conf}">${conf}</span></span>
-      <span>tracklist: ${esc(d.tracklist_source||'?')}</span>
       ${d.release_source ? `<span>release: ${esc(d.release_source)}</span>` : ''}
       ${d.details_source ? `<span>details: ${esc(d.details_source)}</span>` : ''}
       <span>${esc(d._model||'')} &middot; ${secs.toFixed(1)}s${
         d._cost!=null ? ' &middot; $'+Number(d._cost).toFixed(4) : ''}</span>
     </div>`;
+  renderScanTags(d, false);
   out.style.display = 'block';
   empty.style.display = 'none';
   lastRecord = d;
   refreshSaveRow();
   loadBpm(d);
   loadTrackArtists(d);
+}
+
+// What the chain is and isn't sure about, said at the top of the reading
+// rather than in small print under the table - confidence, and which source
+// the tracklist actually came from, are what decide whether the numbers below
+// are worth trusting. Called twice: once when the sleeve read lands, and again
+// when the tempo pass finishes, because "2 tracks without tempo" is a fact
+// that only exists after the lookup has come back.
+function renderScanTags(d, bpmDone){
+  const el = $('#rel-tags');
+  if (!el) return;
+  const conf = d.confidence || '';
+  const cls = ['high','medium','low'].includes(conf) ? conf : '';
+  const tags = [
+    `<span class="${cls}">Confidence ${esc(conf || 'unknown')}</span>`,
+    `<span>Tracklist from ${esc(d.tracklist_source || 'unknown source')}</span>`,
+  ];
+  // A mix's own title exists in no catalogue, so it was never going to
+  // resolve - counting it as a gap would be reporting a miss that isn't one.
+  const named = (d.tracks || []).filter(t => t.title && !t.is_mix);
+  if (bpmDone && named.length){
+    const gap = named.filter(t => t.bpm == null).length;
+    tags.push(gap
+      ? `<span class="gap">${gap} track${gap === 1 ? '' : 's'} without tempo</span>`
+      : `<span class="high">Tempo on every track</span>`);
+  }
+  el.innerHTML = tags.join('');
 }
 
 // BPM and key are looked up after the tracklist is already on screen - they
@@ -1011,9 +1303,12 @@ async function loadBpm(d){
     (body.results||[]).forEach((f,i)=>{
       if (entries[i]) applyBpmToCell(entries[i], f);
     });
+    renderScanTags(d, true);
   } catch(err){
     if (run !== bpmRun) return;
-    entries.forEach((e,i)=>{ if(cells[i]) cells[i].textContent = e.isMix ? 'mix' : '—'; });
+    entries.forEach((e,i)=>{
+      if(cells[i]) cells[i].textContent = e.isMix ? 'mix' : 'no tempo';
+    });
     console.warn('bpm lookup failed:', err.message);
   }
 }
@@ -1035,7 +1330,10 @@ function applyBpmToCell(e, f){
   const c = document.getElementById(e.id);
   if (!c) return;
   if (!f){
-    c.textContent = e.isMix ? 'mix' : '—';
+    // "No tempo known" rather than an em-dash: nothing found still beats a
+    // wrong answer, but a blank column doesn't say which of the two it is,
+    // and the cell is a search you can run by hand.
+    c.textContent = e.isMix ? 'mix' : 'no tempo';
     c.classList.remove('got');
     c.title = 'no tempo found — click to search for the right recording';
     return;
@@ -1379,8 +1677,12 @@ function showTab(name){
   if (name === 'library') loadLibrary();
   if (name === 'profile') $('#profile-email').textContent = currentUser?.email || '';
 }
+// closest(), not e.target: each tab holds an icon and a label span, so on a
+// phone (where the icon is the bigger of the two) e.target is regularly the
+// child rather than the button carrying data-tab.
 $('#tabs').addEventListener('click', e => {
-  if (e.target.dataset.tab) showTab(e.target.dataset.tab);
+  const tab = e.target.closest('[data-tab]');
+  if (tab) showTab(tab.dataset.tab);
 });
 
 // Three views onto the same fetched data, not three separate loads:
@@ -1403,13 +1705,15 @@ function showLibraryView(view){
   renderLibraryViews();
 }
 
+// Same reason as the tabs above - the filters carry an icon and a count
+// alongside their label, so the click lands on a child of the button.
 $('#library-pills').addEventListener('click', e => {
-  if (e.target.id === 'clearArtistFilter'){
+  if (e.target.closest('#clearArtistFilter')){
     libraryArtistFilter = null;
     renderLibraryViews();
     return;
   }
-  const view = e.target.dataset.view;
+  const view = e.target.closest('[data-view]')?.dataset.view;
   if (!view) return;
   libraryArtistFilter = null;   // switching content type drops any drill-down
   showLibraryView(view);
@@ -1814,8 +2118,43 @@ async function loadLibrary(){
   resolveMissingCovers();
 }
 
+// The rail's per-view counts and the crate-coverage readout. Both are derived
+// from what loadLibrary() already holds in memory, so neither costs a request.
+// Coverage gets a number rather than a footnote because it's this project's
+// own yardstick: a crate is only as useful as the share of it that has a
+// tempo, and the gap is the thing worth working down.
+function renderLibraryMeta(){
+  const tracks = flattenTracks(libraryAlbums);
+  const counts = {
+    albums: libraryAlbums.length,
+    artists: groupByArtist(libraryAlbums).length,
+    tracks: tracks.length,
+    // Playlists are fetched lazily - blank until they land, rather than a
+    // confidently wrong 0.
+    playlists: playlistsLoaded ? playlistsOnly().length : null,
+  };
+  $$('.pill-count').forEach(el => {
+    const n = counts[el.dataset.count];
+    el.textContent = n == null ? '' : String(n);
+  });
+
+  const el = $('#coverage');
+  if (!tracks.length){ el.innerHTML = ''; return; }
+  const resolved = tracks.filter(t => t.bpm != null).length;
+  const pct = Math.round(resolved / tracks.length * 100);
+  const gap = tracks.length - resolved;
+  el.innerHTML = `
+    <div class="lbl">Crate coverage</div>
+    <div class="num"><b>${pct}</b><span>% with tempo</span></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="note">${gap
+      ? `${gap} track${gap === 1 ? '' : 's'} still without a tempo.`
+      : 'Every saved track has a tempo.'}</div>`;
+}
+
 function renderLibraryViews(){
   renderChip();
+  renderLibraryMeta();
 
   if (!libraryAlbums.length){
     $('#library-grid').innerHTML = '<div class="empty">No saved albums yet.</div>';
@@ -2367,6 +2706,7 @@ async function loadPlaylists(){
   playlistRows = data || [];
   renderPlaylistTree();
   renderTrackBubbles();   // the Tracks page reads the same list
+  renderLibraryMeta();    // and so does the rail's Playlists count
 }
 
 function renderPlaylistTree(){
@@ -2857,12 +3197,41 @@ function coverHtml(url){
   return url ? `<img src="${esc(url)}" loading="lazy" alt="">` : '&#9835;';
 }
 
+// The three things worth knowing about a record before you pull it off the
+// wall: the tempo span it covers, how many distinct keys are on it, and how
+// many tracks. All of it comes from the tracks loadLibrary() already fetched
+// alongside the album, so the grid costs nothing extra to make readable.
+// A record with nothing resolved says so - that's the one worth knowing about.
+function albumStats(a){
+  const ts = a.tracks || [];
+  if (!ts.length) return '';
+  // t.bpm != null first: Number(null) is 0, which Number.isFinite happily
+  // accepts, and an unresolved track would drag every span down to "0–146".
+  const bpms = ts.filter(t => t.bpm != null)
+                 .map(t => Number(t.bpm)).filter(Number.isFinite);
+  const keys = new Set(ts.map(t => t.key_camelot).filter(Boolean));
+  const parts = [];
+  if (bpms.length){
+    const lo = Math.round(Math.min(...bpms)), hi = Math.round(Math.max(...bpms));
+    parts.push(`<span class="s-bpm" title="tempo span">${
+      lo === hi ? lo : lo + '&ndash;' + hi}</span>`);
+  } else {
+    parts.push('<span title="no track has a tempo yet">no tempo</span>');
+  }
+  if (keys.size)
+    parts.push(`<span class="s-key" title="distinct keys">${keys.size} key${
+      keys.size === 1 ? '' : 's'}</span>`);
+  parts.push(`<span title="${ts.length} track${ts.length === 1 ? '' : 's'}">${ts.length}</span>`);
+  return `<div class="stats">${parts.join('')}</div>`;
+}
+
 function renderCoverTile(a){
   return `
     <div class="cover-card" data-id="${a.id}">
       <div class="art" id="art-${a.id}">${coverHtml(a.cover_url)}</div>
       <div class="t-album">${esc(a.album||'Unknown album')}</div>
       <div class="t-artist">${esc(a.artist||'Unknown artist')}</div>
+      ${albumStats(a)}
     </div>`;
 }
 
@@ -3020,7 +3389,7 @@ function renderLibraryAlbum(a){
         }>${
           t.bpm != null
             ? `${esc(String(t.bpm))} <span class="key">${esc(t.key_camelot||'')}</span>`
-            : (t.is_mix ? 'mix' : '—')
+            : (t.is_mix ? 'mix' : 'no tempo')
         }</td></tr>`;
       }).join('')
     : `<tr><td colspan="4" class="empty">No tracklist saved.</td></tr>`;
