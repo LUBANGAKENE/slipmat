@@ -9,6 +9,7 @@ sleeve directly with the camera - which is how you'd actually use this next
 to the decks.
 """
 
+import base64
 import json
 import os
 import re
@@ -21,8 +22,15 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 from flask import Flask, jsonify, render_template, request
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 import bpm
 import identify
+import listen
 import vinyl
 
 app = Flask(__name__)
@@ -234,6 +242,77 @@ def api_track_pick():
         return jsonify({"error": "could not read that recording"}), 502
     if not feat:
         return jsonify({"error": "no tempo known for that recording"}), 404
+    return jsonify(_bpm_payload(feat))
+
+
+_CAMELOT = re.compile(r"^(?:[1-9]|1[0-2])[AB]$", re.I)
+
+
+@app.post("/api/bpm-override")
+def api_bpm_override():
+    """Type the real number in by hand - for when the recording matched is
+    already right and only the tempo reading is wrong (a common failure on
+    syncopated genres the streaming source's own tempo model gets confused
+    by, no better recording to pick instead)."""
+    payload = request.get_json(silent=True) or {}
+    artist = (payload.get("artist") or "").strip() or None
+    title = (payload.get("title") or "").strip()
+    camelot = (payload.get("key") or "").strip() or None
+    if not title:
+        return jsonify({"error": "title required"}), 400
+    try:
+        bpm_value = float(payload.get("bpm"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "bpm must be a number"}), 400
+    if not (20 <= bpm_value <= 300):
+        return jsonify({"error": "that doesn't look like a BPM"}), 400
+    if camelot and not _CAMELOT.match(camelot):
+        return jsonify({"error": "key should look like 8A or 5B"}), 400
+
+    feat = bpm.override(artist, title, bpm_value, camelot=camelot)
+    return jsonify(_bpm_payload(feat))
+
+
+@app.post("/api/bpm-listen")
+def api_bpm_listen():
+    """Shazam-style tempo: a phone's mic held up to the turntable, analysed
+    directly with listen.py instead of looked up against a streaming
+    catalogue. For a pressing that runs at a different speed than whatever
+    digital master the lookup chain would have found - or isn't on a
+    streaming service at all.
+    """
+    payload = request.get_json(silent=True) or {}
+    artist = (payload.get("artist") or "").strip() or None
+    title = (payload.get("title") or "").strip()
+    audio = payload.get("audio") or ""
+    if not title:
+        return jsonify({"error": "title required"}), 400
+    if not audio:
+        return jsonify({"error": "no recording supplied"}), 400
+
+    header, _, b64 = audio.partition(",")
+    if b64:
+        try:
+            raw = base64.b64decode(b64)
+        except (ValueError, TypeError):
+            return jsonify({"error": "malformed recording"}), 400
+    else:
+        return jsonify({"error": "malformed recording"}), 400
+
+    m = re.search(r"audio/([\w-]+)", header)
+    ext = {"webm": ".webm", "mp4": ".mp4", "ogg": ".ogg",
+           "mpeg": ".mp3", "wav": ".wav"}.get(m.group(1) if m else "", ".webm")
+
+    try:
+        feat = listen.analyze_upload(raw, suffix=ext)
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 502
+    if not feat:
+        return jsonify({"error": "couldn't find a steady beat in that recording - "
+                                  "try holding the phone closer, or recording longer"}), 422
+
+    feat = bpm.override(artist, title, feat["bpm"], camelot=feat.get("camelot"),
+                         source="recorded")
     return jsonify(_bpm_payload(feat))
 
 

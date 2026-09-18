@@ -306,6 +306,45 @@
      field and the header search box's result rows; the only new thing here
      is the scroll box they sit in. */
   .fix-results{padding:0 10px 6px;max-height:46vh;overflow-y:auto}
+  /* Another way into the same correction: type the number in, for when you
+     already have it - read off a DJ app that analysed the real audio. */
+  .fix-modes{display:flex;gap:8px;padding:0 18px 10px}
+  .fix-modes button{flex:1;padding:7px 10px;font-size:12px;border-radius:8px;
+    cursor:pointer;background:transparent;border:1px solid var(--line2);color:var(--dim);
+    font-family:var(--font-body)}
+  .fix-modes button:hover{border-color:var(--dim);color:var(--ink)}
+  .fix-manual{display:flex;gap:8px;padding:0 18px 14px;align-items:center}
+  .fix-manual input{background:var(--bg);border:1px solid var(--line2);border-radius:8px;
+    padding:8px 10px;font-size:13.5px;color:var(--ink);font-family:var(--font-mono)}
+  .fix-manual input:focus{outline:none;border-color:var(--red)}
+  .fix-manual #fix-manual-bpm{width:70px}
+  .fix-manual #fix-manual-key{width:64px;text-transform:uppercase}
+  .fix-manual button{padding:7px 14px;font-size:11.5px;border-radius:999px;cursor:pointer;
+    background:var(--red);border:1px solid var(--red);color:#140C09;font-family:var(--font-body)}
+
+  /* The record button pulses outward like Shazam's listening indicator while
+     armed - two staggered rings expanding and fading, drawn as pseudo-
+     elements so the button itself never has to resize. */
+  .fix-listen{display:flex;flex-direction:column;align-items:center;gap:12px;
+    padding:4px 18px 20px}
+  .fix-listen-btn{position:relative;width:60px;height:60px;flex:none;
+    border-radius:50%;border:0;cursor:pointer;background:var(--red);
+    color:#140C09;font-size:18px;display:flex;align-items:center;justify-content:center}
+  .fix-listen-btn.rec::before,.fix-listen-btn.rec::after{
+    content:'';position:absolute;inset:0;border-radius:50%;
+    border:2px solid var(--red);opacity:.55;
+    animation:fix-listen-pulse 1.6s ease-out infinite}
+  .fix-listen-btn.rec::after{animation-delay:.8s}
+  @keyframes fix-listen-pulse{
+    0%{transform:scale(1);opacity:.55}
+    100%{transform:scale(2.1);opacity:0}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .fix-listen-btn.rec::before,.fix-listen-btn.rec::after{animation:none}
+  }
+  .fix-listen-status{font-size:12.5px;color:var(--dim);text-align:center;min-height:16px}
+  .fix-listen-status.err{color:var(--bad)}
+
   /* ReccoBeats is the smaller catalogue of the two, so Spotify offers
      recordings it has no tempo for. Shown, but visibly not an option -
      hiding them invites "why isn't my version in the list?". */
@@ -615,7 +654,13 @@
   .status.ok{color:var(--ok)}
 
   #out{display:none;margin:0}
-  .rel{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:6px}
+  .rel{display:flex;gap:18px;align-items:flex-start;
+    border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:6px}
+  .rel-cover{width:84px;height:84px;border-radius:8px;overflow:hidden;flex:none;
+    background:var(--panel);display:flex;align-items:center;justify-content:center;
+    color:var(--line2);font-size:11px}
+  .rel-cover img{width:100%;height:100%;object-fit:cover;display:block}
+  .rel-text{flex:1;min-width:0}
   .rel .artist{color:var(--red);font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
     text-transform:uppercase;font-weight:500}
   .rel .album{font-family:var(--font-display);font-variation-settings:'wdth' 112,'wght' 800;
@@ -704,19 +749,22 @@
      #library-panel gets the plain td.bpm only, not .p-bpm: a saved mix's
      parts live in a JSON column rather than their own row, with nothing
      for the fix to persist against yet, so they stay non-interactive
-     there rather than offering an edit that goes nowhere. */
-  #out td.bpm,#out .p-bpm,#library-panel td.bpm{cursor:pointer}
+     there rather than offering an edit that goes nowhere. The Tracks page's
+     .nums block (its BPM+key, in the flex .trk row rather than a table)
+     gets the same treatment - same correction, different layout. */
+  #out td.bpm,#out .p-bpm,#library-panel td.bpm,#track-list .nums{cursor:pointer}
   /* Fills below are var(--line2)/var(--dim) spelled out as hex - a data URI
      is opaque to the page's CSS custom properties, so currentColor and
      var() both resolve against the SVG's own (nonexistent) context rather
      than this element's. If the palette changes, these two need updating
      by hand to match. */
-  #out td.bpm::after,#out .p-bpm::after,#library-panel td.bpm::after{
+  #out td.bpm::after,#out .p-bpm::after,#library-panel td.bpm::after,
+  #track-list .nums::after{
     content:'';display:inline-block;width:9px;height:9px;margin-left:5px;
     vertical-align:-1px;background-repeat:no-repeat;background-size:contain;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232A2F35' d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E")}
   #out td.bpm:hover::after,#out .p-bpm:hover::after,
-  #library-panel td.bpm:hover::after{
+  #library-panel td.bpm:hover::after,#track-list .nums:hover::after{
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%236B7A82' d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E")}
   /* A track's own artist only ever shows up here for a various-artists
      compilation, where the title cell already wraps for long transcribed
@@ -1014,6 +1062,21 @@
   <div class="add-search">
     <input type="text" id="fix-search" placeholder="Search for the right recording"
            autocomplete="off" autocorrect="off" spellcheck="false">
+  </div>
+  <div class="fix-modes">
+    <button type="button" id="fix-manual-toggle">Type the BPM in</button>
+    <button type="button" id="fix-listen-toggle">Listen for it</button>
+  </div>
+  <div class="fix-manual" id="fix-manual" hidden>
+    <input type="number" id="fix-manual-bpm" placeholder="BPM" step="0.1" inputmode="decimal">
+    <input type="text" id="fix-manual-key" placeholder="Key (8A)" maxlength="3" autocomplete="off">
+    <button type="button" id="fix-manual-save">Save</button>
+  </div>
+  <!-- Shazam-style: the phone's own mic, held up to the turntable, measured
+       directly with listen.py instead of looked up against a catalogue. -->
+  <div class="fix-listen" id="fix-listen" hidden>
+    <button type="button" class="fix-listen-btn" id="fix-listen-btn" aria-label="Start listening">&#9679;</button>
+    <div class="fix-listen-status" id="fix-listen-status">Hold your phone near the speaker, then tap to listen</div>
   </div>
   <div class="fix-results" id="fix-results"></div>
 </div>
@@ -1341,10 +1404,13 @@ function show(d, secs){
 
   out.innerHTML = `
     <div class="rel">
-      <div class="artist">${esc(d.artist||'Unknown artist')}</div>
-      <div class="album">${esc(d.album||'Unknown album')}</div>
-      <div class="meta">${meta||'<span>no pressing details read</span>'}</div>
-      <div class="rel-tags" id="rel-tags"></div>
+      <div class="rel-cover" id="rel-cover">${coverHtml(d.cover_url)}</div>
+      <div class="rel-text">
+        <div class="artist">${esc(d.artist||'Unknown artist')}</div>
+        <div class="album">${esc(d.album||'Unknown album')}</div>
+        <div class="meta">${meta||'<span>no pressing details read</span>'}</div>
+        <div class="rel-tags" id="rel-tags"></div>
+      </div>
     </div>
     <table>${rows}</table>
     ${d.notes ? `<div class="notes">${esc(d.notes)}</div>` : ''}
@@ -1479,11 +1545,25 @@ function finishTempoPipelineStep(d){
 // resolved on its own. Everything it adds it first removes: on the correction
 // path there is already a play button pointing at the wrong recording, and a
 // wrong name under the title.
+//
+// Assumes a table cell's shape (e.row.key, flat text + a <span class="key">)
+// - the scan table and the saved-album view are both built that way. The
+// Tracks page's .trk rows are a different shape (key_camelot, not key; a
+// stacked .nums block, not a flat cell) and pass their own e.paint instead
+// of using this directly - see paintTrackRow below.
 function applyBpmToCell(e, f){
   if (f){
     e.row.bpm = f.bpm; e.row.key = f.key; e.row.bpm_source = f.source;
     e.row.bpm_matched = f.matched || null;
     e.row.spotify_id = f.spotify_id || null;
+    // pickedTitle only arrives from a hand-picked recording (see
+    // pickFixCandidate) - a considered correction, trusted enough to
+    // overwrite the track's own credit, not just name where the tempo
+    // came from the way matched_artist below does.
+    if (f.pickedTitle !== undefined){
+      e.row.title = f.pickedTitle;
+      e.row.artist = f.pickedArtist || null;
+    }
   }
 
   const c = document.getElementById(e.id);
@@ -1532,17 +1612,36 @@ function applyBpmToCell(e, f){
   // tempo's source rather than as this pressing's performer - on a covers
   // compilation those are different people, and the per-track artist search
   // (loadTrackArtists) may still fill the real one in over the top of this.
-  if (!e.isPart){
-    const cell = titleCell;
-    if (cell){
-      cell.querySelector(':scope > .t-artist.from-bpm')?.remove();
-      if (!e.row.artist && f.matched_artist
-          && !cell.querySelector(':scope > .t-artist')){
-        cell.insertAdjacentHTML('beforeend',
-          `<div class="t-artist from-bpm" title="the BPM and key came from this `
-          + `recording — not confirmed as the performer on this pressing">`
-          + `${esc(f.matched_artist)}</div>`);
+  // A hand-picked recording (f.pickedTitle set) is the one exception: it
+  // rewrites the title text itself and asserts the artist as a real credit
+  // rather than caveating it - see the note where pickedTitle is read above.
+  //
+  // The title is a bare text node in this markup (`${title}${mixTag}${artist}`,
+  // not wrapped in its own element - see the <td> templates in show() and
+  // renderLibraryAlbum), so it's found by node type rather than a selector.
+  if (!e.isPart && titleCell){
+    const titleNode = [...titleCell.childNodes].find(n => n.nodeType === Node.TEXT_NODE);
+    if (f.pickedTitle !== undefined && titleNode) titleNode.textContent = f.pickedTitle;
+
+    titleCell.querySelector(':scope > .t-artist')?.remove();
+    const anchor = titleCell.querySelector(':scope > .mix-tag') || titleNode;
+    let artistDiv = null;
+
+    if (f.pickedTitle !== undefined){
+      if (e.row.artist){
+        artistDiv = document.createElement('div');
+        artistDiv.className = 't-artist';
+        artistDiv.textContent = e.row.artist;
       }
+    } else if (!e.row.artist && f.matched_artist){
+      artistDiv = document.createElement('div');
+      artistDiv.className = 't-artist from-bpm';
+      artistDiv.title = 'the BPM and key came from this recording — not '
+        + 'confirmed as the performer on this pressing';
+      artistDiv.textContent = f.matched_artist;
+    }
+    if (artistDiv){
+      if (anchor) anchor.after(artistDiv); else titleCell.appendChild(artistDiv);
     }
   }
 }
@@ -1596,11 +1695,17 @@ $('#library-panel').addEventListener('click', e => {
 // writes under: bpm_matched only means anything while the track still has
 // no artist credit of its own.
 async function persistTrackPick(track, payload){
+  // track.title/.artist are read here rather than off payload - the paint
+  // step (applyBpmToCell/paintTrackRow) already wrote a hand-picked
+  // recording's title/artist onto track itself before this runs, and a
+  // manual BPM entry (no pickedTitle) leaves them at their current value,
+  // which is a harmless no-op write here.
   const { error } = await supabaseClient.from('tracks').update({
     bpm: payload.bpm ?? null, key_camelot: payload.key ?? null,
     bpm_source: payload.source ?? null,
     bpm_matched: track.artist ? null : (payload.matched || null),
     spotify_id: payload.spotify_id || null,
+    title: track.title || null, artist: track.artist || null,
   }).eq('id', track.id);
   if (error) throw error;
 }
@@ -1626,6 +1731,11 @@ function openFixSheet(entry){
   input.value = [entry.artist, entry.title].filter(Boolean).join(' ');
   $('#fix-results').innerHTML =
     '<div class="sheet-empty">Searching&hellip;</div>';
+  $('#fix-manual').hidden = true;
+  $('#fix-manual-bpm').value = entry.row?.bpm ?? '';
+  $('#fix-manual-key').value = entry.row?.key ?? entry.row?.key_camelot ?? '';
+  $('#fix-listen').hidden = true;
+  resetListenPanel();
   $('#fix-sheet').style.display = 'block';
   $('#sheet-backdrop').style.display = 'block';
   input.focus();
@@ -1634,9 +1744,12 @@ function openFixSheet(entry){
 }
 
 function closeFixSheet(){
+  stopListening();
   $('#fix-sheet').style.display = 'none';
   $('#sheet-backdrop').style.display = 'none';
   $('#fix-results').innerHTML = '';
+  $('#fix-manual').hidden = true;
+  $('#fix-listen').hidden = true;
   clearTimeout(fixTimer);
   fixRun++;                     // in-flight replies land after we're gone
   fixEntry = null;
@@ -1744,7 +1857,13 @@ async function pickFixCandidate(cand){
                             artist: entry.artist || '', title: entry.title})});
     const body = await r.json();
     if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
-    applyBpmToCell(entry, body);
+    // Picking a recording by hand is a considered correction, not a guess
+    // the search ranked first - unlike every other path into these two
+    // functions, this one also overwrites the track's own title/artist to
+    // match what was picked. See applyBpmToCell/paintTrackRow.
+    body.pickedTitle = cand.title || entry.title;
+    body.pickedArtist = cand.artist || null;
+    (entry.paint || applyBpmToCell)(entry, body);
 
     // A scan row lives only in the browser until Save to library writes it,
     // so painting the cell is the whole job. A saved row is already a
@@ -1758,14 +1877,184 @@ async function pickFixCandidate(cand){
     }
   } catch(err){
     // Put back whatever the row already had rather than leaving it on '…'.
-    applyBpmToCell(entry, entry.row.bpm == null ? null : {
-      bpm: entry.row.bpm, key: entry.row.key, source: entry.row.bpm_source,
-      matched: entry.row.bpm_matched, matched_artist: null,
-      spotify_id: entry.row.spotify_id});
+    // key falls back to key_camelot: a library-shape row (Tracks page,
+    // saved album view) carries the key there, not in .key - see the
+    // shape note at the top of applyBpmToCell.
+    (entry.paint || applyBpmToCell)(entry, entry.row.bpm == null ? null : {
+      bpm: entry.row.bpm, key: entry.row.key ?? entry.row.key_camelot,
+      source: entry.row.bpm_source, matched: entry.row.bpm_matched,
+      matched_artist: null, spotify_id: entry.row.spotify_id});
     if (cell) cell.title = 'could not use that recording: ' + err.message;
     console.warn('track pick failed:', err.message);
   }
 }
+
+// ------------------------------------------------- typing the BPM in
+// Another way into the same correction the picker above makes - for when
+// the recording matched is already right and only the number is wrong, so
+// there's no "better recording" to pick instead. Writes back through
+// applyBpmToCell/onPicked, same as pickFixCandidate, so a hand-fixed row is
+// indistinguishable from one that resolved on its own.
+
+$('#fix-manual-toggle').addEventListener('click', () => {
+  const panel = $('#fix-manual');
+  panel.hidden = !panel.hidden;
+  if (!panel.hidden){
+    $('#fix-listen').hidden = true;
+    stopListening();
+    $('#fix-manual-bpm').focus();
+  }
+});
+
+// Shazam-style: hold the phone's mic up to the turntable and measure the
+// actual pressing instead of looking one up. See listen.py for why this
+// exists - a lookup only ever finds the tempo of *some* digital master,
+// never the record spinning right now at whatever pitch the fader's at.
+const LISTEN_MAX_S = 12;
+let listenRecorder = null, listenChunks = [], listenTimer = null, listenStream = null;
+
+$('#fix-listen-toggle').addEventListener('click', () => {
+  const panel = $('#fix-listen');
+  panel.hidden = !panel.hidden;
+  if (!panel.hidden){
+    $('#fix-manual').hidden = true;
+  } else {
+    stopListening();
+  }
+});
+
+$('#fix-listen-btn').addEventListener('click', () => {
+  if (listenRecorder && listenRecorder.state === 'recording') stopListening();
+  else startListening();
+});
+
+function resetListenPanel(){
+  clearInterval(listenTimer);
+  listenTimer = null;
+  $('#fix-listen-btn').classList.remove('rec');
+  const statusEl = $('#fix-listen-status');
+  statusEl.className = 'fix-listen-status';
+  statusEl.textContent = 'Hold your phone near the speaker, then tap to listen';
+}
+
+async function startListening(){
+  const statusEl = $('#fix-listen-status');
+  statusEl.className = 'fix-listen-status';
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({audio: true});
+  } catch(err){
+    statusEl.className = 'fix-listen-status err';
+    statusEl.textContent = "Couldn't reach the microphone: " + err.message;
+    return;
+  }
+  listenStream = stream;
+  listenChunks = [];
+  const mime = ['audio/webm', 'audio/mp4', 'audio/ogg']
+    .find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+  listenRecorder = new MediaRecorder(stream, mime ? {mimeType: mime} : undefined);
+  listenRecorder.ondataavailable = e => { if (e.data.size) listenChunks.push(e.data); };
+  listenRecorder.onstop = () => finishListening(listenRecorder.mimeType || mime || 'audio/webm');
+  listenRecorder.start();
+
+  $('#fix-listen-btn').classList.add('rec');
+  let elapsed = 0;
+  statusEl.textContent = `Listening… ${LISTEN_MAX_S}s`;
+  listenTimer = setInterval(() => {
+    elapsed++;
+    const remain = LISTEN_MAX_S - elapsed;
+    if (remain > 0) statusEl.textContent = `Listening… ${remain}s`;
+    else stopListening();
+  }, 1000);
+}
+
+function stopListening(){
+  clearInterval(listenTimer);
+  listenTimer = null;
+  $('#fix-listen-btn').classList.remove('rec');
+  if (listenRecorder && listenRecorder.state === 'recording') listenRecorder.stop();
+  if (listenStream) listenStream.getTracks().forEach(t => t.stop());
+  listenStream = null;
+}
+
+async function finishListening(mimeType){
+  const entry = fixEntry;
+  const statusEl = $('#fix-listen-status');
+  if (!entry || !listenChunks.length) return;
+
+  const blob = new Blob(listenChunks, {type: mimeType});
+  if (blob.size < 2000){
+    statusEl.className = 'fix-listen-status err';
+    statusEl.textContent = 'Too short to measure - hold the phone near the speaker and try again.';
+    return;
+  }
+  statusEl.textContent = 'Analysing…';
+
+  let dataUrl;
+  try{
+    dataUrl = await new Promise((resolve, reject) => {
+      const rd = new FileReader();
+      rd.onerror = () => reject(rd.error || new Error('read failed'));
+      rd.onload = () => resolve(rd.result);
+      rd.readAsDataURL(blob);
+    });
+  } catch(err){
+    statusEl.className = 'fix-listen-status err';
+    statusEl.textContent = 'Could not read that recording: ' + err.message;
+    return;
+  }
+
+  try{
+    const r = await fetch('/api/bpm-listen', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({artist: entry.artist || '', title: entry.title, audio: dataUrl})});
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error || ('HTTP ' + r.status));
+
+    closeFixSheet();
+    const cell = document.getElementById(entry.id);
+    if (cell) cell.textContent = '…';
+    (entry.paint || applyBpmToCell)(entry, body);
+    if (entry.onPicked){
+      try{ await entry.onPicked(body); }
+      catch(perr){ alert('Measured the BPM, but could not save it: ' + perr.message); }
+    }
+  } catch(err){
+    statusEl.className = 'fix-listen-status err';
+    statusEl.textContent = err.message;
+  }
+}
+
+$('#fix-manual-save').addEventListener('click', async () => {
+  if (!fixEntry) return;
+  const bpmValue = parseFloat($('#fix-manual-bpm').value);
+  const keyValue = $('#fix-manual-key').value.trim();
+  if (!bpmValue || bpmValue <= 0){
+    $('#fix-manual-bpm').focus();
+    return;
+  }
+
+  const entry = fixEntry;
+  closeFixSheet();
+  const cell = document.getElementById(entry.id);
+  if (cell) cell.textContent = '…';
+  try{
+    const r = await fetch('/api/bpm-override', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({artist: entry.artist || '', title: entry.title,
+                            bpm: bpmValue, key: keyValue || null})});
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.error || ('HTTP '+r.status));
+    (entry.paint || applyBpmToCell)(entry, body);
+    if (entry.onPicked){
+      try{ await entry.onPicked(body); }
+      catch(perr){ alert('Saved the BPM, but could not save it: ' + perr.message); }
+    }
+  } catch(err){
+    if (cell) cell.title = 'could not save that BPM: ' + err.message;
+    console.warn('bpm override failed:', err.message);
+  }
+});
 
 // Fourth pass, fired alongside BPM: for a various-artists compilation where
 // neither Discogs nor an album-level MusicBrainz lookup could name a
@@ -2205,11 +2494,13 @@ async function saveToLibrary(d){
   st.textContent = 'Saving…';
 
   try{
-    // Apple's catalogue first - it's the one covering ex-CD/streaming
-    // releases, so it wins when both have an answer. Discogs is the
-    // fallback: only reached when iTunes has nothing, which is exactly the
-    // vinyl-only case Discogs was originally added here to cover.
-    const coverUrl = (await resolveCoverArt(d.artist, d.album)) || d.cover_url || null;
+    // The backend already picked this by showing the photographed sleeve
+    // and every Discogs/iTunes candidate to a vision model - see
+    // vinyl._resolve_cover. That beats this page's own iTunes-only,
+    // text-matched lookup, which only runs as a fallback when the backend
+    // found nothing to compare (e.g. Discogs was down, or no candidate had
+    // a catalogue entry at all).
+    const coverUrl = d.cover_url || (await resolveCoverArt(d.artist, d.album)) || null;
 
     const { data: album, error } = await supabaseClient.from('albums').insert({
       artist: d.artist || null, album: d.album || null, year: d.year || null,
@@ -2491,7 +2782,7 @@ function trackRowHtml(t, opts){
         <div class="t-title">${esc(t.title || '?')}</div>
         <div class="t-artist">${esc(t.artist || 'Unknown artist')}</div>
       </div>
-      <div class="nums">${nums}</div>
+      <div class="nums" id="tnums-${esc(t.id || '')}">${nums}</div>
       <button class="trk-menu" data-menu="${esc(t.id || '')}"
         aria-label="Track options">&#8943;</button>
     </div>`;
@@ -2524,6 +2815,51 @@ async function renderTracksPage(){
     : `<div class="empty">${trackFilterPlaylist
          ? 'Nothing in this playlist yet.' : 'No tracks saved.'}</div>`;
 }
+
+// The Tracks page's own way into the "wrong song?"/"type it in" sheet -
+// same picker, same manual-entry panel, but a different row shape than the
+// scan table or the saved-album view: key_camelot rather than key, and a
+// stacked .nums block rather than a flat cell. e.paint below is how
+// openFixSheet's shared flows (pickFixCandidate, the manual-save handler)
+// get told to paint this shape instead of applyBpmToCell's table-cell one.
+function paintTrackRow(entry, f){
+  const row = entry.row;
+  row.bpm = f ? f.bpm : null;
+  row.key_camelot = f ? f.key : null;
+  row.bpm_source = f ? f.source : null;
+  row.spotify_id = f ? (f.spotify_id || null) : null;
+  // A hand-picked recording overwrites title/artist too - see the note on
+  // pickedTitle in applyBpmToCell, which this mirrors for the Tracks page's
+  // row shape. Done before bpm_matched below, since that decision depends
+  // on whether the row now has a real artist credit.
+  if (f && f.pickedTitle !== undefined){
+    row.title = f.pickedTitle;
+    row.artist = f.pickedArtist || null;
+  }
+  row.bpm_matched = row.artist ? null : ((f && f.matched) || null);
+
+  const el = document.getElementById('tnums-' + row.id)?.closest('.trk');
+  if (el) el.outerHTML = trackRowHtml(row);
+}
+
+$('#track-list').addEventListener('click', e => {
+  const cell = e.target.closest('.nums');
+  if (!cell) return;
+  const trackId = cell.closest('.trk')?.dataset.trackId;
+  if (!trackId) return;
+
+  for (const a of libraryAlbums){
+    const t = (a.tracks || []).find(tr => tr.id === trackId);
+    if (t){
+      openFixSheet({
+        id: cell.id, title: t.title, artist: t.artist || null, row: t,
+        paint: paintTrackRow,
+        onPicked: payload => persistTrackPick(t, payload),
+      });
+      return;
+    }
+  }
+});
 
 $('#track-sortbar').addEventListener('click', e => {
   const chip = e.target.closest('.sort-chip');
@@ -3606,9 +3942,25 @@ async function resolveCoverArt(artist, album){
       term: [queryArtist, album].filter(Boolean).join(' '), entity: 'album', limit: 5,
     }));
     const body = await r.json();
-    const wantArtist = (queryArtist || '').toLowerCase().split(' ')[0];
-    const hit = (body.results || []).find(it =>
-      !wantArtist || (it.artistName || '').toLowerCase().includes(wantArtist));
+
+    // Checking only the artist's first word let a same-artist, wrong-release
+    // compilation through - "Roberto Delgado ... Latin À La Carte" matched a
+    // completely different "Roberto Delgado ... WeltHits" collection, because
+    // "roberto" appears in both and the album title was never checked at
+    // all. Requiring the album title to match too (either direction, since
+    // iTunes and a sleeve can each carry extra subtitle text the other
+    // lacks) is what actually distinguishes one release from another here -
+    // the artist alone never does, on any prolific artist's catalogue.
+    const wantAlbum = _normArtist(album);
+    const wantArtist = _normArtist(queryArtist || '');
+    const hit = (body.results || []).find(it => {
+      const gotAlbum = _normArtist(it.collectionName || '');
+      if (!wantAlbum || !gotAlbum) return false;
+      if (!gotAlbum.includes(wantAlbum) && !wantAlbum.includes(gotAlbum)) return false;
+      if (!wantArtist) return true;
+      const gotArtist = _normArtist(it.artistName || '');
+      return gotArtist.includes(wantArtist) || wantArtist.includes(gotArtist);
+    });
     return hit?.artworkUrl100 ? hit.artworkUrl100.replace('100x100bb', '600x600bb') : null;
   } catch{
     return null;   // offline, or iTunes is down - never block the library on this

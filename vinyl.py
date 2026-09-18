@@ -13,11 +13,29 @@ import json
 import os
 import re
 import sys
+import time
 
 import requests
 
 API = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "google/gemini-2.5-flash"
+
+COVER_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cover_picks.log")
+
+
+def _log_cover_pick(entry):
+    """Append one JSON line per pick_cover() call - candidates offered, the
+    model's raw answer, and what got saved - so a wrong pick can be traced
+    back to whether the candidates were bad or the model's read was.
+    """
+    entry["ts"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    line = json.dumps(entry, ensure_ascii=False)
+    try:
+        with open(COVER_LOG, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError:
+        pass
+    print("[cover_pick] " + line, file=sys.stderr)
 
 
 def load_env(path=".env"):
@@ -131,18 +149,153 @@ def scan_paths(paths, **kw):
     return scan_images(images, **kw)
 
 
-def fill_tracklist(rec):
-    """Only used when the photos showed no tracklist. Free, needs no
-    OpenRouter key.
+COVER_PROMPT = """The photos labelled "Sleeve" above are photographs of one
+vinyl record's actual sleeve, taken by the record's owner - typically front
+and back, sometimes just one side. Each photo after those is a candidate
+cover image from a music catalogue, labelled with a letter. Catalogue covers
+are always the front artwork, so judge each candidate against whichever
+sleeve photo is the front - a plain, text-only back cover is not a mismatch,
+it's simply not the side to compare.
+
+Compare the candidates against the sleeve photos and decide which one, if
+any, is the same cover - the same photograph or artwork, not just the same
+album title. A different pressing or a reissue commonly carries completely
+different artwork under an identical title; a same-titled but
+different-looking candidate is not a match, no matter how confident its
+metadata looked.
+
+Return ONLY minified JSON, no markdown fence:
+{"match": "A"|"B"|... |null, "confidence": "high"|"medium"|"low"}
+
+Use null if none of the candidates show the same cover as the sleeve's front
+- that is a normal answer, not a failure, and is better than picking the
+closest-looking wrong one."""
+
+_LETTERS = "ABCDEFGH"
+
+
+def pick_cover(sleeve_images, candidates, api_key=None, model=None, timeout=45):
+    """Which candidate cover (if any) is a photograph of the record actually
+    in hand - see identify.cover_candidates and identify.itunes_cover for
+    where these come from. Text ranking (artist/album/catalogue number)
+    regularly can't tell same-artist releases or same-titled pressings apart;
+    looking at the actual photographed sleeve can. Returns a cover_url, or
+    None when the model found no confident match - which stays blank rather
+    than guessing, the same call this app makes everywhere else.
+
+    Skipped by the caller (see _resolve_cover) whenever there's only one
+    candidate to begin with - nothing to compare, so nothing to ask.
+    """
+    cand_log = [{"letter": _LETTERS[i], "source": c["source"], "id": c.get("id"),
+                 "label": c.get("label"), "cover_url": c.get("cover_url")}
+                for i, c in enumerate(candidates)]
+
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        _log_cover_pick({"n_sleeve_images": len(sleeve_images), "candidates": cand_log,
+                          "outcome": "single-candidate, no ask",
+                          "picked": candidates[0]["cover_url"]})
+        return candidates[0]["cover_url"]
+
+    key = api_key or os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        _log_cover_pick({"n_sleeve_images": len(sleeve_images), "candidates": cand_log,
+                          "outcome": "no API key, fell back to top-ranked",
+                          "picked": candidates[0]["cover_url"]})
+        return candidates[0]["cover_url"]   # can't ask - the old top-ranked guess
+
+    parts = []
+    for img in sleeve_images:
+        parts.append({"type": "text", "text": "Sleeve:"})
+        parts.append({"type": "image_url", "image_url": {"url": img
+                      if isinstance(img, str) else _data_url(img)}})
+    for letter, cand in zip(_LETTERS, candidates):
+        parts.append({"type": "text",
+                      "text": "Candidate %s (%s):" % (letter, cand["label"])})
+        parts.append({"type": "image_url", "image_url": {"url": cand["cover_url"]}})
+    parts.append({"type": "text", "text": COVER_PROMPT})
+
+    try:
+        r = requests.post(
+            API,
+            headers={"Authorization": "Bearer " + key,
+                     "Content-Type": "application/json", "X-Title": "Slipmat"},
+            json={"model": model or os.environ.get("VINYL_MODEL") or DEFAULT_MODEL,
+                  "temperature": 0,
+                  "messages": [{"role": "user", "content": parts}]},
+            timeout=timeout,
+        )
+        body = r.json()
+        if r.status_code != 200 or "choices" not in body:
+            _log_cover_pick({"n_sleeve_images": len(sleeve_images), "candidates": cand_log,
+                              "outcome": "HTTP %s / no choices" % r.status_code,
+                              "raw_body": body, "picked": candidates[0]["cover_url"]})
+            return candidates[0]["cover_url"]
+        text = body["choices"][0]["message"]["content"].strip()
+        text = re.sub(r"^```(?:json)?|```$", "", text, flags=re.M).strip()
+        result = json.loads(text)
+    except (requests.RequestException, json.JSONDecodeError) as exc:
+        _log_cover_pick({"n_sleeve_images": len(sleeve_images), "candidates": cand_log,
+                          "outcome": "request/parse failed: %r" % exc,
+                          "picked": candidates[0]["cover_url"]})
+        return candidates[0]["cover_url"]   # ask failed - fall back, don't block the scan
+
+    match = (result.get("match") or "").strip().upper()[:1]
+    if not match:
+        _log_cover_pick({"n_sleeve_images": len(sleeve_images), "candidates": cand_log,
+                          "model_raw": text, "outcome": "model said no match",
+                          "picked": None})
+        return None   # the model looked and found none - trust that over a guess
+    idx = _LETTERS.find(match)
+    picked = candidates[idx]["cover_url"] if 0 <= idx < len(candidates) else None
+    _log_cover_pick({"n_sleeve_images": len(sleeve_images), "candidates": cand_log,
+                      "model_raw": text, "outcome": "matched %s" % match,
+                      "picked": picked})
+    return picked
+
+
+def _resolve_cover(rec, hits, images, model=None):
+    """The one place cover_url gets set, for all three callers below (a
+    sleeve tracklist, a guessed one, or none at all). Gathers candidates from
+    every source that has this release - the top few off `hits` (Discogs,
+    or MusicBrainz's own hits, though MusicBrainz never carries a cover
+    itself) plus one more from iTunes - then asks pick_cover to look at the
+    actual photographed sleeve rather than trust text ranking alone.
+
+    images may be None (no photos on hand, e.g. a hypothetical text-only
+    caller) - falls back to the top-ranked candidate's cover without asking,
+    same as before this existed.
+    """
+    import identify
+
+    candidates = identify.cover_candidates(hits)
+    itunes = identify.itunes_cover(rec.get("artist"), rec.get("album"))
+    if itunes and not any(c["cover_url"] == itunes["cover_url"] for c in candidates):
+        candidates.append(itunes)
+
+    if not candidates:
+        return
+    if not images or len(candidates) == 1:
+        rec["cover_url"] = candidates[0]["cover_url"]
+        return
+    rec["cover_url"] = pick_cover(images, candidates, model=model)
+
+
+def fill_tracklist(rec, images=None, model=None):
+    """Only used when the photos showed no tracklist. Free beyond the cover
+    lookup below, needs no OpenRouter key for the tracklist itself.
 
     The tracklist itself only ever comes from Discogs. It's built around the
     exact vinyl pressing - A1/B1 side positions, per-format track order -
     where MusicBrainz's release-group model blends data across pressings and
     formats loosely enough that its tracklist isn't reliable for "where to
-    drop the needle", the whole reason this app exists. Metadata (year,
-    label, catalogue number, cover) still uses whichever source matched,
-    Discogs preferred - a wrong pressing's year or label is a small miss,
-    a wrong pressing's tracklist actively sends you to the wrong track.
+    drop the needle", the whole reason this app exists. Year, label, and
+    catalogue number use whichever source matched, Discogs preferred - a
+    wrong pressing's year or label is a small miss, a wrong pressing's
+    tracklist actively sends you to the wrong track. The cover gets its own
+    check, since text agreement on all three still doesn't guarantee the
+    artwork does - see _resolve_cover.
     """
     import identify
 
@@ -161,8 +314,7 @@ def fill_tracklist(rec):
         rec["label"] = full.get("label")
     if not rec.get("catalog_number"):
         rec["catalog_number"] = full.get("catalog_number")
-    if full.get("cover_url"):
-        rec["cover_url"] = full["cover_url"]
+    _resolve_cover(rec, hits, images, model)
 
     discogs_hits = [h for h in hits if h["source"] == "discogs"]
     if not discogs_hits or discogs_hits[0]["match"] == "weak":
@@ -290,7 +442,7 @@ def _backfill_artists_from_musicbrainz(tracks, artist, album, catalog_number=Non
     return filled
 
 
-def enrich_from_release(rec):
+def enrich_from_release(rec, images=None, model=None):
     """Consult the databases once the release is identified, and prefer what
     they hold over what the photo could make out.
 
@@ -302,9 +454,12 @@ def enrich_from_release(rec):
     confident match, or its tracklist comes back empty, the photo's own
     reading stands untouched.
 
-    Everything else (year, label, catalogue number, cover) only ever fills a
-    blank, from whichever source matched, and never overwrites what was
-    legible on the sleeve.
+    Year, label, and catalogue number only ever fill a blank, from whichever
+    source matched, and never overwrite what was legible on the sleeve. The
+    cover is different: text agreement on artist/album/catalogue number
+    still leaves several real pressings tied, each with its own artwork, so
+    it gets compared against the actual photographed sleeve - see
+    _resolve_cover - rather than just taking the top-ranked match's.
     """
     import identify
 
@@ -332,8 +487,7 @@ def enrich_from_release(rec):
         rec["label"] = full.get("label")
     if not rec.get("catalog_number"):
         rec["catalog_number"] = full.get("catalog_number")
-    if not rec.get("cover_url") and full.get("cover_url"):
-        rec["cover_url"] = full["cover_url"]
+    _resolve_cover(rec, hits, images, model)
 
     # Track-level data only ever comes from Discogs - a MusicBrainz release
     # blends pressings and formats in a way that isn't trustworthy per track,
@@ -377,7 +531,7 @@ def enrich_from_release(rec):
     return rec
 
 
-def name_from_tracklist(rec, model=None):
+def name_from_tracklist(rec, images=None, model=None):
     """The sleeve gave a tracklist but no album (or no artist). Ask the model
     which record these songs are from, then confirm that guess against
     Discogs/MusicBrainz - the same verifier the metadata path already uses -
@@ -426,8 +580,7 @@ def name_from_tracklist(rec, model=None):
         rec["label"] = full.get("label")
     if not rec.get("catalog_number"):
         rec["catalog_number"] = full.get("catalog_number") or best.get("catno")
-    if not rec.get("cover_url") and full.get("cover_url"):
-        rec["cover_url"] = full["cover_url"]
+    _resolve_cover(rec, hits, images, model)
     # Per-track duration/artist only ever comes from Discogs, same reasoning
     # as fill_tracklist - a MusicBrainz release blends data across pressings
     # in a way that isn't trustworthy at the individual-track level.
@@ -450,9 +603,10 @@ def scan_and_fill(images, **kw):
     rec = scan_images(images, **kw)
     rec["tracklist_source"] = "sleeve"
 
+    model = kw.get("model")
     if not rec.get("tracks"):
         try:
-            rec, best = fill_tracklist(rec)
+            rec, best = fill_tracklist(rec, images=images, model=model)
             rec["tracklist_source"] = (
                 "%s (%s %s)" % (best["source"], best["format"], best.get("date") or "")
                 if best else "none"
@@ -470,16 +624,17 @@ def scan_and_fill(images, **kw):
         # backwards from the songs first, so there's something to search on.
         if not rec.get("album") or not rec.get("artist"):
             try:
-                rec = name_from_tracklist(rec, model=kw.get("model"))
+                rec = name_from_tracklist(rec, images=images, model=model)
             except identify.DatabaseUnavailable:
                 pass   # a nameless tracklist is still useful
 
         # Then look the release up regardless. Discogs catalogues the exact
         # pressing, so its tracklist supersedes the photo's reading of one -
-        # see enrich_from_release. Costs nothing beyond the request itself:
-        # no vision call, no extra photo.
+        # see enrich_from_release. The cover comparison is the one place
+        # this now costs a second vision call beyond the request itself -
+        # only when more than one candidate cover exists to tell apart.
         try:
-            rec = enrich_from_release(rec)
+            rec = enrich_from_release(rec, images=images, model=model)
         except identify.DatabaseUnavailable:
             pass   # keep the sleeve read; the blanks stay blank
 

@@ -588,6 +588,76 @@ def resolve_release(candidate):
     }
 
 
+def cover_candidates(hits, limit=3):
+    """Cover images for the top few candidates, for a vision model to compare
+    against the photographed sleeve - see vinyl.pick_cover. Text ranking
+    (artist/album/catalogue number) regularly can't distinguish one pressing
+    from another when both agree on all three; their cover art almost always
+    still differs, which is the whole reason to look.
+
+    Resolves each of the top `limit` *distinct* hits - same dedup key as
+    resolve_release needs, (source, id) - stopping once `limit` candidates
+    actually carry a cover_url (MusicBrainz releases never do, so a MusicBrainz
+    hit only costs a lookup, never counts against the limit).
+    """
+    seen = set()
+    out = []
+    for h in hits:
+        key = (h["source"], h["id"])
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            full = resolve_release(h)
+        except DatabaseUnavailable:
+            continue
+        if not full.get("cover_url"):
+            continue
+        out.append({
+            "source": h["source"], "id": h["id"],
+            "label": "%s - %s (%s, %s)" % (
+                h.get("artist") or "?", h.get("title") or "?",
+                h.get("country") or "?", h.get("date") or "?"),
+            "cover_url": full["cover_url"],
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
+def itunes_cover(artist, album):
+    """One more candidate cover, from Apple's catalogue rather than a vinyl
+    database - free, keyless, and deep enough to carry a release Discogs and
+    MusicBrainz's vinyl-only catalogues miss. Handed to the vision model
+    alongside the database candidates above, on equal footing - never
+    trusted outright the way it used to be when it was the only fallback
+    (see the frontend's now-superseded resolveCoverArt).
+    """
+    if not album:
+        return None
+    term = " ".join(t for t in
+                    (None if is_generic_artist(artist) else artist, album) if t)
+    try:
+        r = requests.get("https://itunes.apple.com/search",
+                         params={"term": term, "entity": "album", "limit": 1},
+                         timeout=10)
+        r.raise_for_status()
+        results = (r.json() or {}).get("results") or []
+    except requests.RequestException:
+        return None
+    if not results:
+        return None
+    art = results[0].get("artworkUrl100")
+    if not art:
+        return None
+    return {
+        "source": "itunes", "id": results[0].get("collectionId"),
+        "label": "%s - %s" % (results[0].get("artistName") or "?",
+                              results[0].get("collectionName") or "?"),
+        "cover_url": art.replace("100x100bb", "600x600bb"),
+    }
+
+
 def mb_track_artists(artist, album, catalog_number=None):
     """Per-track artist from MusicBrainz, for when Discogs has the tracklist
     but none of its tracks carry their own artist - an occasional gap for a

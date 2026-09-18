@@ -4,3 +4,5 @@ testdata/
 __pycache__/
 *.pyc
 .venv/
+cover_picks.log
+.claude/

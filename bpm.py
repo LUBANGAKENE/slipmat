@@ -607,6 +607,25 @@ def features_for_spotify_id(spotify_id, artist=None, title=None):
     return feat
 
 
+def override(artist, title, bpm_value, camelot=None, source="manual"):
+    """Replace the tempo (and, optionally, the key) cached for one track, by
+    hand. Keeps everything else the lookup chain already found - the Spotify
+    id that runs the preview button, energy/danceability, whichever
+    recording was matched - since only the number itself was wrong, not the
+    search that found the track.
+    """
+    cache, _, _ = _clients()
+    feat, _ = cache.get(artist, title)
+    feat = dict(feat) if feat else {}
+    feat["bpm"] = round(float(bpm_value), 1)
+    feat["bpm_alternatives"] = analyze.tempo_candidates(feat["bpm"])
+    if camelot:
+        feat["camelot"] = camelot
+    feat["source"] = source
+    cache.put(artist, title, feat)
+    return feat
+
+
 def annotate(record, allow_network=True):
     """Fill in every track of a Slipmat record in place, and return it.
 
