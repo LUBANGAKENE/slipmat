@@ -273,6 +273,26 @@ def api_bpm_override():
     return jsonify(_bpm_payload(feat))
 
 
+def _analyze_recording(raw, ext):
+    """listen.py in-process when this machine actually has librosa/ffmpeg -
+    every local dev run, no network hop, nothing to pay for. Falls back to
+    the same analysis running on Modal (see modal_listen.py) only when it
+    doesn't - which today means exactly one place: this app running on
+    Vercel, whose build has neither. A Modal-side failure (not deployed, no
+    token configured here) surfaces as the *local* error instead of its own,
+    since that's the one actually worth fixing when neither path works.
+    """
+    try:
+        return listen.analyze_upload(raw, suffix=ext)
+    except RuntimeError as local_exc:
+        try:
+            import modal
+            fn = modal.Function.from_name("slipmat-listen", "analyze_recording")
+            return fn.remote(raw, ext)
+        except Exception:
+            raise local_exc
+
+
 @app.post("/api/bpm-listen")
 def api_bpm_listen():
     """Shazam-style tempo: a phone's mic held up to the turntable, analysed
@@ -304,7 +324,7 @@ def api_bpm_listen():
            "mpeg": ".mp3", "wav": ".wav"}.get(m.group(1) if m else "", ".webm")
 
     try:
-        feat = listen.analyze_upload(raw, suffix=ext)
+        feat = _analyze_recording(raw, ext)
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 502
     if not feat:
