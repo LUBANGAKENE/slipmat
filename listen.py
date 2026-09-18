@@ -23,37 +23,51 @@ import subprocess
 import sys
 import tempfile
 
-import numpy as np
-
 import analyze
 
 # Krumhansl-Kessler key profiles: the classic empirical weighting of how much
 # each pitch class "belongs" to a major/minor key built on the tonic at
 # index 0. Correlating a clip's own chroma against every rotation of these
 # is the standard cheap key estimator when nothing fancier is available.
-_MAJOR_PROFILE = np.array(
-    [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
-_MINOR_PROFILE = np.array(
-    [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+# Plain lists, not arrays: numpy is imported lazily below (see _import_libs),
+# so this module itself stays importable - and app.py working at all - on a
+# deployment that never installed the audio stack.
+_MAJOR_PROFILE = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88]
+_MINOR_PROFILE = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17]
 _NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 MIN_SECONDS = 6.0   # shorter than this and the beat tracker has too little
                     # to lock onto - better to say so than guess.
 
 
-def _detect_tempo(y, sr):
-    import librosa
+def _import_libs():
+    """librosa (and the numpy it needs) only when a clip actually has to be
+    analysed. Vercel's function bundle doesn't carry them - the whole app
+    would fail to even start if this were a module-level import instead -
+    so a request here fails on its own with a clear reason instead of
+    taking every other route down with it.
+    """
+    try:
+        import numpy as np
+        import librosa
+        return np, librosa
+    except ImportError as exc:
+        raise RuntimeError(
+            "audio analysis isn't available on this server (%s) - "
+            "this feature needs librosa/numpy installed alongside it" % exc)
+
+
+def _detect_tempo(np, librosa, y, sr):
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
     bpm = float(np.atleast_1d(tempo)[0])
     return round(bpm, 1) if bpm > 0 else None
 
 
-def _detect_key(y, sr):
+def _detect_key(np, librosa, y, sr):
     """Pitch-class profile of the clip, matched against all 24 rotated
     major/minor templates. Returns (note_name, mode_float) - mode_float
     follows analyze.to_camelot's convention (1.0 major, 0.0 minor).
     """
-    import librosa
     chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
     profile = chroma.mean(axis=1)
     if not np.any(profile):
@@ -73,15 +87,15 @@ def analyze_clip(path, duration=None):
     produces, so it can be saved and rendered through the identical path.
     Returns None if the clip is unusably short or silent.
     """
-    import librosa
+    np, librosa = _import_libs()
     y, sr = librosa.load(path, sr=22050, mono=True, duration=duration)
     if librosa.get_duration(y=y, sr=sr) < MIN_SECONDS:
         return None
 
-    bpm_val = _detect_tempo(y, sr)
+    bpm_val = _detect_tempo(np, librosa, y, sr)
     if not bpm_val:
         return None
-    note, mode = _detect_key(y, sr)
+    note, mode = _detect_key(np, librosa, y, sr)
 
     return {
         "bpm": bpm_val,
