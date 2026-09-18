@@ -18,12 +18,35 @@ model trained for this would do, which is the tradeoff for needing nothing
 heavier than librosa already sitting in the venv.
 """
 
+import json
 import os
 import subprocess
 import sys
 import tempfile
+import time
 
 import analyze
+
+LISTEN_LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "listen_picks.log")
+
+
+def _log_analysis(entry):
+    """Append one JSON line per clip analysed. The most common wrong answer
+    here isn't a random miss, it's an octave error - the beat tracker
+    locking onto every other beat (half tempo) or a subdivision (double) -
+    a known failure mode of every beat tracker, not a bug specific to this
+    one. bpm_alternatives already carries the other candidate; this log is
+    what lets a wrong pick be told apart from "no beat found at all" after
+    the fact, without re-recording.
+    """
+    entry["ts"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    line = json.dumps(entry, ensure_ascii=False)
+    try:
+        with open(LISTEN_LOG, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError:
+        pass
+    print("[listen] " + line, file=sys.stderr)
 
 # Krumhansl-Kessler key profiles: the classic empirical weighting of how much
 # each pitch class "belongs" to a major/minor key built on the tonic at
@@ -58,9 +81,9 @@ def _import_libs():
 
 
 def _detect_tempo(np, librosa, y, sr):
-    tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+    tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
     bpm = float(np.atleast_1d(tempo)[0])
-    return round(bpm, 1) if bpm > 0 else None
+    return (round(bpm, 1), len(beats)) if bpm > 0 else (None, 0)
 
 
 def _detect_key(np, librosa, y, sr):
@@ -89,17 +112,29 @@ def analyze_clip(path, duration=None):
     """
     np, librosa = _import_libs()
     y, sr = librosa.load(path, sr=22050, mono=True, duration=duration)
-    if librosa.get_duration(y=y, sr=sr) < MIN_SECONDS:
+    clip_s = round(librosa.get_duration(y=y, sr=sr), 1)
+    if clip_s < MIN_SECONDS:
+        _log_analysis({"clip_seconds": clip_s, "outcome": "too short, not analysed"})
         return None
 
-    bpm_val = _detect_tempo(np, librosa, y, sr)
+    bpm_val, n_beats = _detect_tempo(np, librosa, y, sr)
     if not bpm_val:
+        _log_analysis({"clip_seconds": clip_s, "outcome": "no tempo found"})
         return None
     note, mode = _detect_key(np, librosa, y, sr)
+    alternatives = analyze.tempo_candidates(bpm_val)
+
+    _log_analysis({
+        "clip_seconds": clip_s, "beats_detected": n_beats,
+        "bpm": bpm_val, "bpm_alternatives": alternatives,
+        "key": note, "mode": "major" if mode is not None and mode >= 0.5 else
+                             "minor" if mode is not None else None,
+        "outcome": "ok",
+    })
 
     return {
         "bpm": bpm_val,
-        "bpm_alternatives": analyze.tempo_candidates(bpm_val),
+        "bpm_alternatives": alternatives,
         "key": note,
         "mode": "major" if mode is not None and mode >= 0.5 else
                 "minor" if mode is not None else None,

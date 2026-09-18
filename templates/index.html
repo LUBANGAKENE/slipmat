@@ -2580,6 +2580,17 @@ async function loadLibrary(){
   }
 
   libraryAlbums = data || [];
+  // A track has no cover_url column of its own - only its album does. Stamped
+  // onto each track object here, once, so every place that later re-renders
+  // a single track row from this same object (paintTrackRow, after a BPM fix
+  // or a recording) still has something to show art from. flattenTracks()
+  // below sets this too, but only on the display copy it builds fresh each
+  // time - a fix applied through the raw per-track objects here never went
+  // through that copy, so without this the cover silently vanished the
+  // moment a track's numbers were corrected.
+  for (const a of libraryAlbums){
+    for (const t of (a.tracks || [])) t.cover_url = a.cover_url;
+  }
   renderLibraryViews();
   resolveMissingCovers();
 }
@@ -3975,6 +3986,7 @@ async function resolveMissingCovers(){
     const url = await resolveCoverArt(a.artist, a.album);
     if (!url) return;
     a.cover_url = url;
+    for (const t of (a.tracks || [])) t.cover_url = url;
     // Cache it so the next visit costs nothing. Best-effort: a failed write
     // here just means resolving it again next time, not a broken library.
     // The await matters - supabase-js builds this lazily and never sends the

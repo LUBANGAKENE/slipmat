@@ -5,4 +5,5 @@ __pycache__/
 *.pyc
 .venv/
 cover_picks.log
+listen_picks.log
 .claude/
